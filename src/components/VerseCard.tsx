@@ -1,5 +1,4 @@
 import {
-  forwardRef,
   useLayoutEffect,
   useMemo,
   useState,
@@ -14,7 +13,7 @@ import { highlightSegments } from "../lib/highlightSegments";
 const VERSE_BODY_FONT_EN = '"Poppins", system-ui, sans-serif';
 const VERSE_BODY_FONT_HI =
   '"Poppins", "Noto Sans Devanagari", system-ui, sans-serif';
-const SECTION_MAX_W = 880;
+const SECTION_MAX_W = 700;
 const SECTION_MAX_H = 400;
 
 export type VerseCardProps = {
@@ -62,18 +61,14 @@ const rowOuter = (padTop: number): CSSProperties => ({
   boxSizing: "border-box",
 });
 
-export const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
-  function VerseCard(
-    {
-      layout,
-      typography,
-      page,
-      backgroundDataUrl,
-      versionLabelEn,
-      versionLabelHi,
-    },
-    ref,
-  ) {
+export function VerseCard({
+  layout,
+  typography,
+  page,
+  backgroundDataUrl,
+  versionLabelEn,
+  versionLabelHi,
+}: VerseCardProps) {
     const [fontsReady, setFontsReady] = useState(false);
 
     const [bgLoadFailed, setBgLoadFailed] = useState(false);
@@ -134,14 +129,13 @@ export const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
     const hasRasterBg = Boolean(backgroundDataUrl?.trim());
 
     const titleLineEn = (refLabel: string, version: string) =>
-      `${refLabel} — ${version}`;
+      `${refLabel} ${version}`;
 
     const refLabelEn = formatReference(page.ref);
     const titleHiText = `${formatHindiReference(page.ref)} ${versionLabelHi}`;
 
     return (
       <div
-        ref={ref}
         className="verse-card-root"
         style={{
           width: "100%",
@@ -211,23 +205,18 @@ export const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
             alignItems: "flex-start",
           }}
         >
-          {/* Hindi first, then English — positions from layout (default: Hindi title from 250px top). */}
+          {/* Hindi first, then English — positions from layout (default: Hindi title from 130px top). */}
           <div style={rowOuter(0)}>
             <div style={{ width: layout.titleHi.x, flexShrink: 0 }} aria-hidden />
             <div
               style={{
                 ...sectionBox(layout.titleHi),
                 fontFamily: typography.fontFamilyHi,
-                fontSize: typography.titleFontPx,
+                fontSize: typography.titleFontPxHi,
                 fontWeight: 700,
                 fontStyle: "normal",
                 color: typography.titleColor,
-                textAlign: "left",
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "flex-start",
-                textShadow:
-                  "0 1px 2px rgba(0,0,0,0.75), 0 0 12px rgba(0,0,0,0.45)",
+                textAlign: "center",
               }}
             >
               {titleHiText}
@@ -241,11 +230,9 @@ export const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
                 fontFamily: VERSE_BODY_FONT_HI,
                 fontSize: bodyHiPx,
                 lineHeight: typography.lineHeight,
-                textAlign: "left",
-                fontWeight: 500,
+                textAlign: "justify",
+                fontWeight: 700,
                 color: "#ffffff",
-                textShadow:
-                  "0 1px 4px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.55)",
                 wordBreak: "break-word",
               }}
             >
@@ -258,11 +245,11 @@ export const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
               style={{
                 ...sectionBox(layout.titleEn),
                 fontFamily: typography.fontFamilyEn,
-                fontSize: typography.titleFontPx,
+                fontSize: typography.titleFontPxEn,
                 fontWeight: 700,
                 fontStyle: "normal",
                 color: typography.titleColor,
-                textAlign: "left",
+                textAlign: "center",
                 display: "flex",
                 alignItems: "flex-start",
                 justifyContent: "flex-start",
@@ -281,8 +268,8 @@ export const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
                 fontFamily: VERSE_BODY_FONT_EN,
                 fontSize: bodyEnPx,
                 lineHeight: typography.lineHeight,
-                textAlign: "left",
-                fontWeight: 500,
+                textAlign: "justify",
+                fontWeight: 700,
                 color: "#ffffff",
                 textShadow:
                   "0 1px 4px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.55)",
@@ -295,5 +282,4 @@ export const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
         </div>
       </div>
     );
-  },
-);
+}

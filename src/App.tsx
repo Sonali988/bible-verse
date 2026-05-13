@@ -272,10 +272,12 @@ export default function App() {
     await document.fonts.ready;
     const node = exportRef.current;
     if (!node) throw new Error("Export node missing");
-    return renderNodeToPng(node, {
-      width: cardLayout.width,
-      height: cardLayout.height,
-    });
+    // Use measured box so PNG matches layout (avoids stretch when off-screen / subpixel ≠ cardLayout).
+    const ow = Math.round(node.offsetWidth);
+    const oh = Math.round(node.offsetHeight);
+    const w = ow > 0 ? ow : cardLayout.width;
+    const h = oh > 0 ? oh : cardLayout.height;
+    return renderNodeToPng(node, { width: w, height: h });
   };
 
   const downloadCurrentPng = async () => {
@@ -564,6 +566,34 @@ export default function App() {
       {pages.length > 0 && (
         <section className="panel">
           <h2>Card preview</h2>
+
+          <div className="preview-scale">
+            <div
+              className="preview-scale-frame"
+              style={{
+                width: cardLayout.width,
+                height: cardLayout.height,
+                transform: `scale(${previewScale})`,
+              }}
+            >
+              <div
+                className="preview-scale-content"
+                style={{
+                  width: cardLayout.width,
+                  height: cardLayout.height,
+                }}
+              >
+                <VerseCard
+                  layout={cardLayout}
+                  typography={typography}
+                  page={selected ?? pages[0]}
+                  backgroundDataUrl={cardBackgroundUrl}
+                  versionLabelEn={LABEL_EN}
+                  versionLabelHi={LABEL_HI}
+                />
+              </div>
+            </div>
+          </div>
           <p className="muted" style={{ marginBottom: "0.5rem" }}>
             WYSIWYG at {cardLayout.width}×{cardLayout.height}px (scaled to fit). That size is your
             current <strong>Edit card → Canvas</strong> (saved in this browser), which drives preview
@@ -578,88 +608,32 @@ export default function App() {
                 </>
               )}
           </p>
-          {/* <div style={{ padding: "20px 60px" }}>
-            <div
-              className="verse-card-root-1"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr",
-                gridTemplateRows: "1fr",
-                width: "1920px",
-                height: "1080px",
-                backgroundColor: "#0b0d12",
-                transform: "scale(0.5)",
-                transformOrigin: "top left",
-                overflow: "hidden",
-              }}
-            >
-              <img
-                alt=""
-                src={cardBackgroundUrl}
-                key={cardBackgroundUrl}
-                draggable={false}
-                style={{
-                  gridRow: 1,
-                  gridColumn: 1,
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  objectPosition: "center",
-                  userSelect: "none",
-                  pointerEvents: "none",
-                }}
-              />
-            </div>
-          </div> */}
-          <div className="preview-scale">
-            <div
-              className="preview-scale-frame"
-              style={{
-                width: "1920px",
-                height: "1080px",
-                transform: `scale(0.5)`,
-              }}
-            >
-              <div
-                className="preview-scale-content"
-                style={{
-                  width: "1920px",
-                  height: "1080px",
-                }}
-              >
-                <VerseCard
-                  layout={CARD_LAYOUT}
-                  typography={typography}
-                  page={selected ?? pages[0]}
-                  backgroundDataUrl={cardBackgroundUrl}
-                  versionLabelEn={LABEL_EN}
-                  versionLabelHi={LABEL_HI}
-                />
-              </div>
-            </div>
-          </div>
         </section>
+
       )}
 
       {cardPage && (
-          <div className="export-hidden-host" aria-hidden>
-            <div
-              style={{
-                width: cardLayout.width,
-                height: cardLayout.height,
-              }}
-            >
-              <VerseCard
-                ref={exportRef}
-                layout={cardLayout}
-                typography={typography}
-                page={exportPage ?? selected ?? pages[0]}
-                backgroundDataUrl={cardBackgroundUrl}
-                versionLabelEn={LABEL_EN}
-                versionLabelHi={LABEL_HI}
-              />
-            </div>
+        <div className="export-hidden-host" aria-hidden>
+          <div
+            ref={exportRef}
+            className="export-card-snapshot"
+            style={{
+              width: cardLayout.width,
+              height: cardLayout.height,
+              boxSizing: "border-box",
+              overflow: "hidden",
+            }}
+          >
+            <VerseCard
+              layout={cardLayout}
+              typography={typography}
+              page={exportPage ?? selected ?? pages[0]}
+              backgroundDataUrl={cardBackgroundUrl}
+              versionLabelEn={LABEL_EN}
+              versionLabelHi={LABEL_HI}
+            />
           </div>
+        </div>
       )}
     </>
   );

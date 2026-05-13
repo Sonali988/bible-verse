@@ -173,12 +173,21 @@ export function DesignToolbar({
         {(target === "titleEn" || target === "titleHi") && (
           <>
             <Num
-              label="Title font (px)"
-              value={typography.titleFontPx}
+              label="Hindi title (px)"
+              value={typography.titleFontPxHi}
               min={8}
               max={200}
-              onChange={(titleFontPx) =>
-                onUpdateTypography((t) => ({ ...t, titleFontPx }))
+              onChange={(titleFontPxHi) =>
+                onUpdateTypography((t) => ({ ...t, titleFontPxHi }))
+              }
+            />
+            <Num
+              label="English title (px)"
+              value={typography.titleFontPxEn}
+              min={8}
+              max={200}
+              onChange={(titleFontPxEn) =>
+                onUpdateTypography((t) => ({ ...t, titleFontPxEn }))
               }
             />
             <label className="toolbar-field">

@@ -21,7 +21,10 @@ export type LayoutSpec = {
 export type TypographySpec = {
   fontFamilyEn: string;
   fontFamilyHi: string;
-  titleFontPx: number;
+  /** Hindi section title (reference + version) */
+  titleFontPxHi: number;
+  /** English section title (reference + version) */
+  titleFontPxEn: number;
   minBodyFontPx: number;
   maxBodyFontPx: number;
   lineHeight: number;
@@ -51,16 +54,16 @@ export type VersePage = {
 
 /**
  * Default card canvas and text regions (reset + initial load).
- * **1920×1080** to match a full-HD background. Hindi block first (title from **250px** top), then English below.
+ * **1920×1080** to match a full-HD background. Hindi block first (title from **130px** top), then English below.
  * Each title/body region is up to **880×400** (see `VerseCard` max caps); right side stays clear for overlays.
  */
 export const CARD_LAYOUT: LayoutSpec = {
   width: 1920,
   height: 1080,
-  titleHi: { x: 40, y: 250, width: 880, height: 56 },
-  bodyHi: { x: 40, y: 330, width: 880, height: 400 },
-  titleEn: { x: 40, y: 754, width: 880, height: 56 },
-  bodyEn: { x: 40, y: 826, width: 880, height: 254 },
+  titleHi: { x: 40, y: 130, width: 880, height: 56 },
+  bodyHi: { x: 40, y: 210, width: 880, height: 400 },
+  titleEn: { x: 40, y: 634, width: 880, height: 56 },
+  bodyEn: { x: 40, y: 706, width: 880, height: 374 },
 };
 
 export function cloneLayout(layout: LayoutSpec): LayoutSpec {
@@ -100,10 +103,15 @@ export function clampLayoutTextToLeftHalf(layout: LayoutSpec): LayoutSpec {
   };
 }
 
+/** Default section title sizes (reference + version line). */
+export const DEFAULT_TITLE_FONT_PX_HI = 38;
+export const DEFAULT_TITLE_FONT_PX_EN = 40;
+
 export const defaultTypography = (): TypographySpec => ({
   fontFamilyEn: '"Poppins", system-ui, sans-serif',
   fontFamilyHi: '"Poppins", "Noto Sans Devanagari", system-ui, sans-serif',
-  titleFontPx: 38,
+  titleFontPxHi: DEFAULT_TITLE_FONT_PX_HI,
+  titleFontPxEn: DEFAULT_TITLE_FONT_PX_EN,
   minBodyFontPx: 14,
   maxBodyFontPx: 42,
   lineHeight: 1.25,
@@ -112,11 +120,53 @@ export const defaultTypography = (): TypographySpec => ({
   bodyColor: "#ffffff",
 });
 
-/** Fills in `titleColor` / `bodyColor` when loading older saved typography. */
+/** Fills in missing fields. Legacy `titleFontPx` (single size) maps to Hindi 38px / English 40px defaults, not the old pixel value. */
 export function normalizeTypography(
   raw: Partial<TypographySpec> | null | undefined,
 ): TypographySpec {
   const d = defaultTypography();
   if (!raw) return d;
-  return { ...d, ...raw };
+  const legacy = raw as Partial<TypographySpec> & { titleFontPx?: number };
+  const { titleFontPx: legacyTitle, ...rest } = legacy;
+  const base: TypographySpec = { ...d, ...rest };
+  if (
+    typeof legacyTitle === "number" &&
+    Number.isFinite(legacyTitle) &&
+    rest.titleFontPxHi === undefined &&
+    rest.titleFontPxEn === undefined
+  ) {
+    return repairStaleTitleFontPair(
+      coerceTitleFontSizes({
+        ...base,
+        titleFontPxHi: DEFAULT_TITLE_FONT_PX_HI,
+        titleFontPxEn: DEFAULT_TITLE_FONT_PX_EN,
+      }),
+    );
+  }
+  return repairStaleTitleFontPair(coerceTitleFontSizes(base));
+}
+
+/** Old migration copied one `titleFontPx` into both fields (often 26×26); bump to current defaults. */
+function repairStaleTitleFontPair(t: TypographySpec): TypographySpec {
+  if (t.titleFontPxHi === 26 && t.titleFontPxEn === 26) {
+    return {
+      ...t,
+      titleFontPxHi: DEFAULT_TITLE_FONT_PX_HI,
+      titleFontPxEn: DEFAULT_TITLE_FONT_PX_EN,
+    };
+  }
+  return t;
+}
+
+function coerceTitleFontSizes(t: TypographySpec): TypographySpec {
+  const d = defaultTypography();
+  const hi =
+    typeof t.titleFontPxHi === "number" && Number.isFinite(t.titleFontPxHi)
+      ? t.titleFontPxHi
+      : d.titleFontPxHi;
+  const en =
+    typeof t.titleFontPxEn === "number" && Number.isFinite(t.titleFontPxEn)
+      ? t.titleFontPxEn
+      : d.titleFontPxEn;
+  return { ...t, titleFontPxHi: hi, titleFontPxEn: en };
 }
