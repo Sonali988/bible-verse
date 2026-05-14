@@ -25,23 +25,23 @@ export type TypographySpec = {
   titleFontPxHi: number;
   /** English section title (reference + version) */
   titleFontPxEn: number;
-  minBodyFontPx: number;
-  maxBodyFontPx: number;
-  lineHeight: number;
+  /** Hindi verse body (fixed pixel size) */
+  bodyFontPxHi: number;
+  /** English verse body (fixed pixel size) */
+  bodyFontPxEn: number;
+  /** Hindi verse body line height (unitless, e.g. 1.25) */
+  lineHeightHi: number;
+  /** English verse body line height (unitless, e.g. 1.25) */
+  lineHeightEn: number;
+  /** Hindi + English section titles (reference + version) */
+  titleTextAlign: "left" | "center" | "right";
+  /** Hindi + English verse bodies */
   textAlign: "left" | "center" | "right";
   /** Section titles (reference + version), e.g. `#ffffff` */
   titleColor: string;
-  /** Verse body text */
+  /** Verse body text (non-highlighted) */
   bodyColor: string;
 };
-
-/** What the design toolbar is editing (Canva-style). */
-export type DesignTarget =
-  | "canvas"
-  | "titleEn"
-  | "bodyEn"
-  | "titleHi"
-  | "bodyHi";
 
 export type VersePage = {
   id: string;
@@ -60,10 +60,10 @@ export type VersePage = {
 export const CARD_LAYOUT: LayoutSpec = {
   width: 1920,
   height: 1080,
-  titleHi: { x: 40, y: 130, width: 880, height: 56 },
-  bodyHi: { x: 40, y: 210, width: 880, height: 400 },
-  titleEn: { x: 40, y: 634, width: 880, height: 56 },
-  bodyEn: { x: 40, y: 706, width: 880, height: 374 },
+  titleHi: { x: 50, y: 130, width: 880, height: 56 },
+  bodyHi: { x: 50, y: 210, width: 880, height: 400 },
+  titleEn: { x: 50, y: 634, width: 880, height: 56 },
+  bodyEn: { x: 50, y: 706, width: 880, height: 374 },
 };
 
 export function cloneLayout(layout: LayoutSpec): LayoutSpec {
@@ -112,23 +112,56 @@ export const defaultTypography = (): TypographySpec => ({
   fontFamilyHi: '"Poppins", "Noto Sans Devanagari", system-ui, sans-serif',
   titleFontPxHi: DEFAULT_TITLE_FONT_PX_HI,
   titleFontPxEn: DEFAULT_TITLE_FONT_PX_EN,
-  minBodyFontPx: 14,
-  maxBodyFontPx: 42,
-  lineHeight: 1.25,
-  textAlign: "left",
+  bodyFontPxHi: 42,
+  bodyFontPxEn: 40,
+  lineHeightHi: 1.25,
+  lineHeightEn: 1.25,
+  titleTextAlign: "center",
+  textAlign: "center",
   titleColor: "#ffffff",
   bodyColor: "#ffffff",
 });
 
-/** Fills in missing fields. Legacy `titleFontPx` (single size) maps to Hindi 38px / English 40px defaults, not the old pixel value. */
+type RawTypography = Partial<TypographySpec> & {
+  titleFontPx?: number;
+  minBodyFontPx?: number;
+  maxBodyFontPx?: number;
+  minBodyFontPxHi?: number;
+  maxBodyFontPxHi?: number;
+  minBodyFontPxEn?: number;
+  maxBodyFontPxEn?: number;
+  /** Legacy single verse line height (migrated to Hi + En) */
+  lineHeight?: number;
+};
+
+/** Fills in missing fields. Migrates legacy min/max verse ranges and `titleFontPx`. */
 export function normalizeTypography(
   raw: Partial<TypographySpec> | null | undefined,
 ): TypographySpec {
   const d = defaultTypography();
   if (!raw) return d;
-  const legacy = raw as Partial<TypographySpec> & { titleFontPx?: number };
-  const { titleFontPx: legacyTitle, ...rest } = legacy;
-  const base: TypographySpec = { ...d, ...rest };
+  const r = raw as RawTypography;
+  const {
+    titleFontPx: legacyTitle,
+    minBodyFontPx: legacyMinBody,
+    maxBodyFontPx: legacyMaxBody,
+    minBodyFontPxHi: oldMinHi,
+    maxBodyFontPxHi: oldMaxHi,
+    minBodyFontPxEn: oldMinEn,
+    maxBodyFontPxEn: oldMaxEn,
+    lineHeight: legacyLineHeight,
+    ...rest
+  } = r;
+  const base = { ...d, ...rest } as TypographySpec;
+  const withBody = coerceBodyFontPx(base, rest, {
+    legacyMin: legacyMinBody,
+    legacyMax: legacyMaxBody,
+    oldMinHi,
+    oldMaxHi,
+    oldMinEn,
+    oldMaxEn,
+  });
+  const withLines = coerceLineHeights(withBody, rest, legacyLineHeight);
   if (
     typeof legacyTitle === "number" &&
     Number.isFinite(legacyTitle) &&
@@ -136,14 +169,16 @@ export function normalizeTypography(
     rest.titleFontPxEn === undefined
   ) {
     return repairStaleTitleFontPair(
-      coerceTitleFontSizes({
-        ...base,
-        titleFontPxHi: DEFAULT_TITLE_FONT_PX_HI,
-        titleFontPxEn: DEFAULT_TITLE_FONT_PX_EN,
-      }),
+      coerceTitleFontSizes(
+        coerceAlignFields({
+          ...withLines,
+          titleFontPxHi: DEFAULT_TITLE_FONT_PX_HI,
+          titleFontPxEn: DEFAULT_TITLE_FONT_PX_EN,
+        }),
+      ),
     );
   }
-  return repairStaleTitleFontPair(coerceTitleFontSizes(base));
+  return repairStaleTitleFontPair(coerceTitleFontSizes(coerceAlignFields(withLines)));
 }
 
 /** Old migration copied one `titleFontPx` into both fields (often 26×26); bump to current defaults. */
@@ -169,4 +204,117 @@ function coerceTitleFontSizes(t: TypographySpec): TypographySpec {
       ? t.titleFontPxEn
       : d.titleFontPxEn;
   return { ...t, titleFontPxHi: hi, titleFontPxEn: en };
+}
+
+function coerceAlignFields(t: TypographySpec): TypographySpec {
+  const d = defaultTypography();
+  return {
+    ...t,
+    textAlign: coerceOneAlign(t.textAlign as string, d.textAlign),
+    titleTextAlign: coerceOneAlign(t.titleTextAlign as string, d.titleTextAlign),
+  };
+}
+
+function coerceOneAlign(
+  v: string | undefined,
+  fallback: TypographySpec["textAlign"],
+): TypographySpec["textAlign"] {
+  if (v === "justify") return "center";
+  if (v === "left" || v === "center" || v === "right") return v;
+  return fallback;
+}
+
+function mid(a?: number, b?: number): number | undefined {
+  if (
+    typeof a === "number" &&
+    Number.isFinite(a) &&
+    typeof b === "number" &&
+    Number.isFinite(b)
+  ) {
+    return Math.round((a + b) / 2);
+  }
+  return undefined;
+}
+
+/** Prefer average of min/max; if only one bound exists, use it. */
+function pickLegacySize(min?: number, max?: number): number | undefined {
+  const m = mid(min, max);
+  if (m !== undefined) return m;
+  if (typeof max === "number" && Number.isFinite(max)) return Math.round(max);
+  if (typeof min === "number" && Number.isFinite(min)) return Math.round(min);
+  return undefined;
+}
+
+function clampBodyPx(n: number, d: number): number {
+  if (typeof n === "number" && Number.isFinite(n)) {
+    return Math.max(6, Math.min(400, Math.round(n)));
+  }
+  return d;
+}
+
+function coerceBodyFontPx(
+  t: TypographySpec,
+  rest: Partial<TypographySpec>,
+  legacy: {
+    legacyMin?: number;
+    legacyMax?: number;
+    oldMinHi?: number;
+    oldMaxHi?: number;
+    oldMinEn?: number;
+    oldMaxEn?: number;
+  },
+): TypographySpec {
+  const d = defaultTypography();
+  const fromGlobal = pickLegacySize(legacy.legacyMin, legacy.legacyMax);
+  const hiExplicit =
+    typeof rest.bodyFontPxHi === "number" && Number.isFinite(rest.bodyFontPxHi);
+  const enExplicit =
+    typeof rest.bodyFontPxEn === "number" && Number.isFinite(rest.bodyFontPxEn);
+  const hi = hiExplicit
+    ? clampBodyPx(rest.bodyFontPxHi!, d.bodyFontPxHi)
+    : clampBodyPx(
+      pickLegacySize(legacy.oldMinHi, legacy.oldMaxHi) ??
+      fromGlobal ??
+      d.bodyFontPxHi,
+      d.bodyFontPxHi,
+    );
+  const en = enExplicit
+    ? clampBodyPx(rest.bodyFontPxEn!, d.bodyFontPxEn)
+    : clampBodyPx(
+      pickLegacySize(legacy.oldMinEn, legacy.oldMaxEn) ??
+      fromGlobal ??
+      d.bodyFontPxEn,
+      d.bodyFontPxEn,
+    );
+  return { ...t, bodyFontPxHi: hi, bodyFontPxEn: en };
+}
+
+function clampLineHeight(n: number, d: number): number {
+  if (typeof n === "number" && Number.isFinite(n)) {
+    return Math.max(1, Math.min(3, Math.round(n * 100) / 100));
+  }
+  return d;
+}
+
+function coerceLineHeights(
+  t: TypographySpec,
+  rest: Partial<TypographySpec>,
+  legacy?: number,
+): TypographySpec {
+  const d = defaultTypography();
+  const hiExplicit =
+    typeof rest.lineHeightHi === "number" && Number.isFinite(rest.lineHeightHi);
+  const enExplicit =
+    typeof rest.lineHeightEn === "number" && Number.isFinite(rest.lineHeightEn);
+  const leg =
+    typeof legacy === "number" && Number.isFinite(legacy)
+      ? clampLineHeight(legacy, d.lineHeightHi)
+      : undefined;
+  const hi = hiExplicit
+    ? clampLineHeight(rest.lineHeightHi!, d.lineHeightHi)
+    : leg ?? clampLineHeight(t.lineHeightHi, d.lineHeightHi);
+  const en = enExplicit
+    ? clampLineHeight(rest.lineHeightEn!, d.lineHeightEn)
+    : leg ?? clampLineHeight(t.lineHeightEn, d.lineHeightEn);
+  return { ...t, lineHeightHi: hi, lineHeightEn: en };
 }

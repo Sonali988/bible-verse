@@ -217,6 +217,60 @@ textarea {
   margin-top: 0.75rem;
 }
 
+.preview-cards-strip {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0.85rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.65rem 0.5rem;
+  margin-top: 0.35rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  scroll-snap-type: x proximity;
+}
+
+.preview-card-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+
+.preview-card-slot {
+  position: relative;
+  flex-shrink: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: box-shadow 0.15s ease;
+}
+
+.preview-card-slot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.preview-card-slot--selected {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.preview-card-caption {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .preview-scale-frame {
   position: relative;
   margin: 0 auto;
@@ -224,6 +278,12 @@ textarea {
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
+}
+
+.preview-cards-strip .preview-scale-frame {
+  margin: 0;
+  border: none;
+  border-radius: 0;
 }
 
 .preview-scale-content {
@@ -285,7 +345,17 @@ textarea {
   border-top: 1px solid var(--border);
 }
 
-.design-toolbar__row--primary {
+.design-toolbar__section-label {
+  margin: 0.65rem 0 0.35rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.design-toolbar__row--reset {
+  justify-content: flex-end;
   align-items: center;
 }
 

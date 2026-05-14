@@ -1,13 +1,6 @@
-import type {
-  DesignTarget,
-  LayoutSpec,
-  Rect,
-  TypographySpec,
-} from "../bible/types";
+import type { LayoutSpec, Rect, TypographySpec } from "../bible/types";
 
 type Props = {
-  target: DesignTarget;
-  onTargetChange: (t: DesignTarget) => void;
   layout: LayoutSpec;
   onUpdateLayout: (fn: (prev: LayoutSpec) => LayoutSpec) => void;
   typography: TypographySpec;
@@ -61,205 +54,238 @@ function patchRect(
   };
 }
 
+function clampVersePx(n: number, fallback: number): number {
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(6, Math.min(400, Math.round(n)));
+}
+
+function RectFields({
+  rectKey,
+  layout,
+  onUpdateLayout,
+}: {
+  rectKey: RectKey;
+  layout: LayoutSpec;
+  onUpdateLayout: Props["onUpdateLayout"];
+}) {
+  const rect = layout[rectKey];
+  return (
+    <div className="design-toolbar__row design-toolbar__row--controls">
+      <Num
+        label="X"
+        value={rect.x}
+        min={0}
+        max={layout.width}
+        onChange={(x) => onUpdateLayout((l) => patchRect(l, rectKey, { x }))}
+      />
+      <Num
+        label="Y"
+        value={rect.y}
+        min={0}
+        max={layout.height}
+        onChange={(y) => onUpdateLayout((l) => patchRect(l, rectKey, { y }))}
+      />
+      <Num
+        label="W"
+        value={rect.width}
+        min={40}
+        max={layout.width}
+        onChange={(width) =>
+          onUpdateLayout((l) =>
+            patchRect(l, rectKey, { width: Math.max(40, width) }),
+          )
+        }
+      />
+      <Num
+        label="H"
+        value={rect.height}
+        min={24}
+        max={layout.height}
+        onChange={(height) =>
+          onUpdateLayout((l) =>
+            patchRect(l, rectKey, { height: Math.max(24, height) }),
+          )
+        }
+      />
+    </div>
+  );
+}
+
 export function DesignToolbar({
-  target,
-  onTargetChange,
   layout,
   onUpdateLayout,
   typography,
   onUpdateTypography,
   onResetDesign,
 }: Props) {
-  const rectKey: RectKey | null =
-    target === "titleEn" ||
-    target === "bodyEn" ||
-    target === "titleHi" ||
-    target === "bodyHi"
-      ? target
-      : null;
-
-  const rect = rectKey ? layout[rectKey] : null;
-
   return (
     <div className="design-toolbar" aria-label="Card layout and typography">
-      <div className="design-toolbar__row design-toolbar__row--primary">
-        <label className="toolbar-field toolbar-field--grow">
-          <span>Edit</span>
-          <select
-            value={target}
-            onChange={(e) => onTargetChange(e.target.value as DesignTarget)}
-          >
-            <option value="canvas">Canvas</option>
-            <option value="titleHi">Hindi title</option>
-            <option value="bodyHi">Hindi verse</option>
-            <option value="titleEn">English title</option>
-            <option value="bodyEn">English verse</option>
-          </select>
-        </label>
+      <div className="design-toolbar__row design-toolbar__row--reset">
         <button type="button" className="btn btn--ghost" onClick={onResetDesign}>
           Reset design to defaults
         </button>
       </div>
 
+      <p className="design-toolbar__section-label">Canvas</p>
       <div className="design-toolbar__row design-toolbar__row--controls">
-        {target === "canvas" && (
-          <>
-            <Num
-              label="Width (px)"
-              value={layout.width}
-              min={320}
-              max={8192}
-              onChange={(width) =>
-                onUpdateLayout((l) => ({ ...l, width: Math.max(320, width) }))
-              }
-            />
-            <Num
-              label="Height (px)"
-              value={layout.height}
-              min={240}
-              max={8192}
-              onChange={(height) =>
-                onUpdateLayout((l) => ({ ...l, height: Math.max(240, height) }))
-              }
-            />
-          </>
-        )}
+        <Num
+          label="Width (px)"
+          value={layout.width}
+          min={320}
+          max={8192}
+          onChange={(width) =>
+            onUpdateLayout((l) => ({ ...l, width: Math.max(320, width) }))
+          }
+        />
+        <Num
+          label="Height (px)"
+          value={layout.height}
+          min={240}
+          max={8192}
+          onChange={(height) =>
+            onUpdateLayout((l) => ({ ...l, height: Math.max(240, height) }))
+          }
+        />
+      </div>
 
-        {rect && rectKey && (
-          <>
-            <Num
-              label="X"
-              value={rect.x}
-              min={0}
-              max={layout.width}
-              onChange={(x) =>
-                onUpdateLayout((l) => patchRect(l, rectKey, { x }))
-              }
-            />
-            <Num
-              label="Y"
-              value={rect.y}
-              min={0}
-              max={layout.height}
-              onChange={(y) =>
-                onUpdateLayout((l) => patchRect(l, rectKey, { y }))
-              }
-            />
-            <Num
-              label="W"
-              value={rect.width}
-              min={40}
-              max={layout.width}
-              onChange={(width) =>
-                onUpdateLayout((l) =>
-                  patchRect(l, rectKey, { width: Math.max(40, width) }),
-                )
-              }
-            />
-            <Num
-              label="H"
-              value={rect.height}
-              min={24}
-              max={layout.height}
-              onChange={(height) =>
-                onUpdateLayout((l) =>
-                  patchRect(l, rectKey, { height: Math.max(24, height) }),
-                )
-              }
-            />
-          </>
-        )}
+      <p className="design-toolbar__section-label">Hindi title box</p>
+      <RectFields rectKey="titleHi" layout={layout} onUpdateLayout={onUpdateLayout} />
 
-        {(target === "titleEn" || target === "titleHi") && (
-          <>
-            <Num
-              label="Hindi title (px)"
-              value={typography.titleFontPxHi}
-              min={8}
-              max={200}
-              onChange={(titleFontPxHi) =>
-                onUpdateTypography((t) => ({ ...t, titleFontPxHi }))
-              }
-            />
-            <Num
-              label="English title (px)"
-              value={typography.titleFontPxEn}
-              min={8}
-              max={200}
-              onChange={(titleFontPxEn) =>
-                onUpdateTypography((t) => ({ ...t, titleFontPxEn }))
-              }
-            />
-            <label className="toolbar-field">
-              <span>Title color</span>
-              <input
-                type="color"
-                value={normalizeHex(typography.titleColor, "#ffffff")}
-                onChange={(e) =>
-                  onUpdateTypography((t) => ({
-                    ...t,
-                    titleColor: e.target.value,
-                  }))
-                }
-              />
-            </label>
-          </>
-        )}
+      <p className="design-toolbar__section-label">Hindi verse box</p>
+      <RectFields rectKey="bodyHi" layout={layout} onUpdateLayout={onUpdateLayout} />
 
-        {(target === "bodyEn" || target === "bodyHi") && (
-          <>
-            <Num
-              label="Body min (px)"
-              value={typography.minBodyFontPx}
-              min={6}
-              max={typography.maxBodyFontPx}
-              onChange={(minBodyFontPx) =>
-                onUpdateTypography((t) => ({
-                  ...t,
-                  minBodyFontPx: Math.min(minBodyFontPx, t.maxBodyFontPx),
-                }))
-              }
-            />
-            <Num
-              label="Body max (px)"
-              value={typography.maxBodyFontPx}
-              min={typography.minBodyFontPx}
-              max={400}
-              onChange={(maxBodyFontPx) =>
-                onUpdateTypography((t) => ({
-                  ...t,
-                  maxBodyFontPx: Math.max(maxBodyFontPx, t.minBodyFontPx),
-                }))
-              }
-            />
-            <Num
-              label="Line height"
-              value={typography.lineHeight}
-              min={1}
-              max={3}
-              step={0.05}
-              onChange={(lineHeight) =>
-                onUpdateTypography((t) => ({ ...t, lineHeight }))
-              }
-            />
-            <label className="toolbar-field">
-              <span>Align</span>
-              <select
-                value={typography.textAlign}
-                onChange={(e) =>
-                  onUpdateTypography((t) => ({
-                    ...t,
-                    textAlign: e.target.value as TypographySpec["textAlign"],
-                  }))
-                }
-              >
-                <option value="left">Left</option>
-                <option value="center">Center</option>
-                <option value="right">Right</option>
-              </select>
-            </label>
-          </>
-        )}
+      <p className="design-toolbar__section-label">English title box</p>
+      <RectFields rectKey="titleEn" layout={layout} onUpdateLayout={onUpdateLayout} />
+
+      <p className="design-toolbar__section-label">English verse box</p>
+      <RectFields rectKey="bodyEn" layout={layout} onUpdateLayout={onUpdateLayout} />
+
+      <p className="design-toolbar__section-label">Font sizes</p>
+      <div className="design-toolbar__row design-toolbar__row--controls">
+        <Num
+          label="Hindi title (px)"
+          value={typography.titleFontPxHi}
+          min={8}
+          max={200}
+          onChange={(titleFontPxHi) =>
+            onUpdateTypography((t) => ({ ...t, titleFontPxHi }))
+          }
+        />
+        <Num
+          label="English title (px)"
+          value={typography.titleFontPxEn}
+          min={8}
+          max={200}
+          onChange={(titleFontPxEn) =>
+            onUpdateTypography((t) => ({ ...t, titleFontPxEn }))
+          }
+        />
+        <Num
+          label="Hindi verse (px)"
+          value={typography.bodyFontPxHi}
+          min={6}
+          max={400}
+          onChange={(n) =>
+            onUpdateTypography((t) => ({
+              ...t,
+              bodyFontPxHi: clampVersePx(n, t.bodyFontPxHi),
+            }))
+          }
+        />
+        <Num
+          label="English verse (px)"
+          value={typography.bodyFontPxEn}
+          min={6}
+          max={400}
+          onChange={(n) =>
+            onUpdateTypography((t) => ({
+              ...t,
+              bodyFontPxEn: clampVersePx(n, t.bodyFontPxEn),
+            }))
+          }
+        />
+        <Num
+          label="Hindi verse line height"
+          value={typography.lineHeightHi}
+          min={1}
+          max={3}
+          step={0.05}
+          onChange={(lineHeightHi) =>
+            onUpdateTypography((t) => ({ ...t, lineHeightHi }))
+          }
+        />
+        <Num
+          label="English verse line height"
+          value={typography.lineHeightEn}
+          min={1}
+          max={3}
+          step={0.05}
+          onChange={(lineHeightEn) =>
+            onUpdateTypography((t) => ({ ...t, lineHeightEn }))
+          }
+        />
+      </div>
+
+      <p className="design-toolbar__section-label">Title & verse style</p>
+      <div className="design-toolbar__row design-toolbar__row--controls">
+        <label className="toolbar-field">
+          <span>Title color</span>
+          <input
+            type="color"
+            value={normalizeHex(typography.titleColor, "#ffffff")}
+            onChange={(e) =>
+              onUpdateTypography((t) => ({
+                ...t,
+                titleColor: e.target.value,
+              }))
+            }
+          />
+        </label>
+        <label className="toolbar-field">
+          <span>Title align</span>
+          <select
+            value={typography.titleTextAlign}
+            onChange={(e) =>
+              onUpdateTypography((t) => ({
+                ...t,
+                titleTextAlign: e.target.value as TypographySpec["titleTextAlign"],
+              }))
+            }
+          >
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
+        </label>
+        <label className="toolbar-field">
+          <span>Verse color</span>
+          <input
+            type="color"
+            value={normalizeHex(typography.bodyColor, "#ffffff")}
+            onChange={(e) =>
+              onUpdateTypography((t) => ({
+                ...t,
+                bodyColor: e.target.value,
+              }))
+            }
+          />
+        </label>
+        <label className="toolbar-field">
+          <span>Verse align</span>
+          <select
+            value={typography.textAlign}
+            onChange={(e) =>
+              onUpdateTypography((t) => ({
+                ...t,
+                textAlign: e.target.value as TypographySpec["textAlign"],
+              }))
+            }
+          >
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
+        </label>
       </div>
 
       <div className="design-toolbar__row design-toolbar__row--fonts">

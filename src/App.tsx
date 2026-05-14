@@ -12,7 +12,6 @@ import {
   cloneLayout,
   defaultTypography,
   normalizeTypography,
-  type DesignTarget,
   type LayoutSpec,
   type TypographySpec,
   type VersePage,
@@ -84,7 +83,6 @@ export default function App() {
   const [typography, setTypography] = useState<TypographySpec>(() =>
     normalizeTypography(persisted.typography ?? null),
   );
-  const [designTarget, setDesignTarget] = useState<DesignTarget>("canvas");
   const [schemaEnJson, setSchemaEnJson] = useState(() =>
     JSON.stringify(persisted.schemaEn ?? defaultSqliteSchema(), null, 2),
   );
@@ -220,7 +218,6 @@ export default function App() {
   const resetCardDesign = () => {
     setCardLayout(cloneLayout(CARD_LAYOUT));
     setTypography(normalizeTypography(defaultTypography()));
-    setDesignTarget("canvas");
   };
 
   const onBgFile = (file: File | null) => {
@@ -337,12 +334,34 @@ export default function App() {
     [],
   );
 
+  const updateTypography = useCallback(
+    (fn: (prev: TypographySpec) => TypographySpec) => {
+      setTypography((prev) => normalizeTypography(fn(prev)));
+    },
+    [],
+  );
+
   /** Scale preview so ~1920px card fits typical viewports; frame keeps true 16:9 box. */
   const previewScale = useMemo(
     () =>
       Math.min(0.5, Math.min(880, cardLayout.width / 2) / cardLayout.width),
     [cardLayout.width],
   );
+
+  const previewScaledSize = useMemo(
+    () => ({
+      w: Math.max(1, Math.round(cardLayout.width * previewScale)),
+      h: Math.max(1, Math.round(cardLayout.height * previewScale)),
+    }),
+    [cardLayout.width, cardLayout.height, previewScale],
+  );
+
+  useEffect(() => {
+    if (!selectedId) return;
+    document
+      .getElementById(`preview-card-${selectedId}`)
+      ?.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+  }, [selectedId]);
 
   const cardBackgroundUrl =
     bgDataUrl && bgDataUrl.trim().length > 0 ? bgDataUrl : defaultPublicCardBgHref;
@@ -359,16 +378,11 @@ export default function App() {
 
       <section className="panel">
         <h2>Edit card</h2>
-        <p className="hint" style={{ marginTop: 0 }}>
-          Pick what to edit, then change numbers and colors. All options stay in this panel.
-        </p>
         <DesignToolbar
-          target={designTarget}
-          onTargetChange={setDesignTarget}
           layout={cardLayout}
           onUpdateLayout={updateCardLayout}
           typography={typography}
-          onUpdateTypography={setTypography}
+          onUpdateTypography={updateTypography}
           onResetDesign={resetCardDesign}
         />
       </section>
@@ -566,38 +580,71 @@ export default function App() {
       {pages.length > 0 && (
         <section className="panel">
           <h2>Card preview</h2>
+          <p className="muted" style={{ marginTop: 0, marginBottom: "0.5rem" }}>
+            All queued verses are shown side by side — scroll horizontally to see each card. Click a
+            card to select it for highlights and PNG export.
+          </p>
 
-          <div className="preview-scale">
-            <div
-              className="preview-scale-frame"
-              style={{
-                width: cardLayout.width,
-                height: cardLayout.height,
-                transform: `scale(${previewScale})`,
-              }}
-            >
-              <div
-                className="preview-scale-content"
-                style={{
-                  width: cardLayout.width,
-                  height: cardLayout.height,
-                }}
-              >
-                <VerseCard
-                  layout={cardLayout}
-                  typography={typography}
-                  page={selected ?? pages[0]}
-                  backgroundDataUrl={cardBackgroundUrl}
-                  versionLabelEn={LABEL_EN}
-                  versionLabelHi={LABEL_HI}
-                />
+          <div className="preview-cards-strip">
+            {pages.map((p) => (
+              <div key={p.id} className="preview-card-wrap">
+                <div
+                  id={`preview-card-${p.id}`}
+                  className={
+                    p.id === selectedId
+                      ? "preview-card-slot preview-card-slot--selected"
+                      : "preview-card-slot"
+                  }
+                  style={{
+                    width: previewScaledSize.w,
+                    height: previewScaledSize.h,
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  title={`Select ${formatReference(p.ref)}`}
+                  onClick={() => setSelectedId(p.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedId(p.id);
+                    }
+                  }}
+                >
+                  <div
+                    className="preview-scale-frame"
+                    style={{
+                      width: cardLayout.width,
+                      height: cardLayout.height,
+                      transform: `scale(${previewScale})`,
+                      transformOrigin: "top left",
+                    }}
+                  >
+                    <div
+                      className="preview-scale-content"
+                      style={{
+                        width: cardLayout.width,
+                        height: cardLayout.height,
+                      }}
+                    >
+                      <VerseCard
+                        layout={cardLayout}
+                        typography={typography}
+                        page={p}
+                        backgroundDataUrl={cardBackgroundUrl}
+                        versionLabelEn={LABEL_EN}
+                        versionLabelHi={LABEL_HI}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <p className="preview-card-caption">{formatReference(p.ref)}</p>
               </div>
-            </div>
+            ))}
           </div>
           <p className="muted" style={{ marginBottom: "0.5rem" }}>
             WYSIWYG at {cardLayout.width}×{cardLayout.height}px (scaled to fit). That size is your
-            current <strong>Edit card → Canvas</strong> (saved in this browser), which drives preview
-            and PNG export.
+            current <strong>Edit card</strong> canvas (saved in this browser), which drives preview and
+            PNG export.
             {(cardLayout.width !== CARD_LAYOUT.width ||
               cardLayout.height !== CARD_LAYOUT.height) && (
                 <>

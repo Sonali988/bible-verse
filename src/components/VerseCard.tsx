@@ -1,12 +1,10 @@
 import {
   useLayoutEffect,
-  useMemo,
   useState,
   type CSSProperties,
 } from "react";
 import type { LayoutSpec, TypographySpec, VersePage } from "../bible/types";
 import { formatHindiReference, formatReference } from "../lib/referenceParser";
-import { fitBodyFontSize } from "../lib/fontFit";
 import { highlightSegments } from "../lib/highlightSegments";
 
 /** Verse body: Poppins Medium (500). Titles keep toolbar fonts + bold. */
@@ -14,7 +12,7 @@ const VERSE_BODY_FONT_EN = '"Poppins", system-ui, sans-serif';
 const VERSE_BODY_FONT_HI =
   '"Poppins", "Noto Sans Devanagari", system-ui, sans-serif';
 const SECTION_MAX_W = 700;
-const SECTION_MAX_H = 400;
+const SECTION_MAX_H = 350;
 
 export type VerseCardProps = {
   layout: LayoutSpec;
@@ -69,62 +67,11 @@ export function VerseCard({
   versionLabelEn,
   versionLabelHi,
 }: VerseCardProps) {
-    const [fontsReady, setFontsReady] = useState(false);
-
     const [bgLoadFailed, setBgLoadFailed] = useState(false);
 
     useLayoutEffect(() => {
       setBgLoadFailed(false);
     }, [backgroundDataUrl]);
-
-    useLayoutEffect(() => {
-      let cancelled = false;
-      void document.fonts.ready.then(() => {
-        if (!cancelled) setFontsReady(true);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }, []);
-
-    const { bodyEnPx, bodyHiPx } = useMemo(() => {
-      if (!fontsReady) {
-        return {
-          bodyEnPx: typography.maxBodyFontPx,
-          bodyHiPx: typography.maxBodyFontPx,
-        };
-      }
-      const en = fitBodyFontSize({
-        text: page.textEn,
-        boxWidth: sectionWidth(layout.bodyEn),
-        boxHeight: sectionHeight(layout.bodyEn),
-        fontFamily: VERSE_BODY_FONT_EN,
-        minPx: typography.minBodyFontPx,
-        maxPx: typography.maxBodyFontPx,
-        lineHeight: typography.lineHeight,
-      });
-      const hi = fitBodyFontSize({
-        text: page.textHi,
-        boxWidth: sectionWidth(layout.bodyHi),
-        boxHeight: sectionHeight(layout.bodyHi),
-        fontFamily: VERSE_BODY_FONT_HI,
-        minPx: typography.minBodyFontPx,
-        maxPx: typography.maxBodyFontPx,
-        lineHeight: typography.lineHeight,
-      });
-      return { bodyEnPx: en, bodyHiPx: hi };
-    }, [
-      fontsReady,
-      layout.bodyEn.height,
-      layout.bodyEn.width,
-      layout.bodyHi.height,
-      layout.bodyHi.width,
-      page.textEn,
-      page.textHi,
-      typography.lineHeight,
-      typography.maxBodyFontPx,
-      typography.minBodyFontPx,
-    ]);
 
     const hasRasterBg = Boolean(backgroundDataUrl?.trim());
 
@@ -216,7 +163,7 @@ export function VerseCard({
                 fontWeight: 700,
                 fontStyle: "normal",
                 color: typography.titleColor,
-                textAlign: "center",
+                textAlign: typography.titleTextAlign,
               }}
             >
               {titleHiText}
@@ -227,12 +174,13 @@ export function VerseCard({
             <div
               style={{
                 ...sectionBox(layout.bodyHi),
+                display: "block",
                 fontFamily: VERSE_BODY_FONT_HI,
-                fontSize: bodyHiPx,
-                lineHeight: typography.lineHeight,
-                textAlign: "justify",
+                fontSize: typography.bodyFontPxHi,
+                lineHeight: typography.lineHeightHi,
+                textAlign: typography.textAlign,
                 fontWeight: 700,
-                color: "#ffffff",
+                color: typography.bodyColor,
                 wordBreak: "break-word",
               }}
             >
@@ -249,12 +197,7 @@ export function VerseCard({
                 fontWeight: 700,
                 fontStyle: "normal",
                 color: typography.titleColor,
-                textAlign: "center",
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "flex-start",
-                textShadow:
-                  "0 1px 2px rgba(0,0,0,0.75), 0 0 12px rgba(0,0,0,0.45)",
+                textAlign: typography.titleTextAlign,
               }}
             >
               {titleLineEn(refLabelEn, versionLabelEn)}
@@ -265,12 +208,13 @@ export function VerseCard({
             <div
               style={{
                 ...sectionBox(layout.bodyEn),
+                display: "block",
                 fontFamily: VERSE_BODY_FONT_EN,
-                fontSize: bodyEnPx,
-                lineHeight: typography.lineHeight,
-                textAlign: "justify",
+                fontSize: typography.bodyFontPxEn,
+                lineHeight: typography.lineHeightEn,
+                textAlign: typography.textAlign,
                 fontWeight: 700,
-                color: "#ffffff",
+                color: typography.bodyColor,
                 textShadow:
                   "0 1px 4px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.55)",
                 wordBreak: "break-word",

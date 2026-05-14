@@ -50,6 +50,7 @@ export function highlightSegments(
           fontWeight: 700,
           padding: 0,
           borderRadius: 0,
+          textAlign: "inherit",
         }}
       >
         {text.slice(r.start, r.end)}
