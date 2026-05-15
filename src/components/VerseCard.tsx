@@ -59,6 +59,21 @@ const rowOuter = (padTop: number): CSSProperties => ({
   boxSizing: "border-box",
 });
 
+/** Verse body alignment + hyphenation helper (no text-justify / text-align-last). */
+function verseBodyAlignmentStyle(
+  typography: TypographySpec,
+  script: "hi" | "en",
+): Pick<CSSProperties, "textAlign" | "hyphens"> {
+  const ta = typography.textAlign;
+  if (ta === "justify") {
+    return {
+      textAlign: "justify",
+      hyphens: script === "en" ? "auto" : "manual",
+    };
+  }
+  return { textAlign: ta };
+}
+
 export function VerseCard({
   layout,
   typography,
@@ -172,19 +187,23 @@ export function VerseCard({
           <div style={rowOuter(verticalGapBelow(layout.titleHi, layout.bodyHi))}>
             <div style={{ width: layout.bodyHi.x, flexShrink: 0 }} aria-hidden />
             <div
+              lang="hi"
               style={{
                 ...sectionBox(layout.bodyHi),
                 display: "block",
                 fontFamily: VERSE_BODY_FONT_HI,
                 fontSize: typography.bodyFontPxHi,
                 lineHeight: typography.lineHeightHi,
-                textAlign: typography.textAlign,
+                ...verseBodyAlignmentStyle(typography, "hi"),
                 fontWeight: 700,
                 color: typography.bodyColor,
-                wordBreak: "break-word",
               }}
             >
-              {highlightSegments(page.textHi, page.highlightsHi)}
+              {highlightSegments(
+                page.textHi,
+                page.highlightsHi,
+                typography.highlightColor,
+              )}
             </div>
           </div>
           <div style={rowOuter(verticalGapBelow(layout.bodyHi, layout.titleEn))}>
@@ -206,21 +225,25 @@ export function VerseCard({
           <div style={rowOuter(verticalGapBelow(layout.titleEn, layout.bodyEn))}>
             <div style={{ width: layout.bodyEn.x, flexShrink: 0 }} aria-hidden />
             <div
+              lang="en"
               style={{
                 ...sectionBox(layout.bodyEn),
                 display: "block",
                 fontFamily: VERSE_BODY_FONT_EN,
                 fontSize: typography.bodyFontPxEn,
                 lineHeight: typography.lineHeightEn,
-                textAlign: typography.textAlign,
+                ...verseBodyAlignmentStyle(typography, "en"),
                 fontWeight: 700,
                 color: typography.bodyColor,
                 textShadow:
                   "0 1px 4px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.55)",
-                wordBreak: "break-word",
               }}
             >
-              {highlightSegments(page.textEn, page.highlightsEn)}
+              {highlightSegments(
+                page.textEn,
+                page.highlightsEn,
+                typography.highlightColor,
+              )}
             </div>
           </div>
         </div>

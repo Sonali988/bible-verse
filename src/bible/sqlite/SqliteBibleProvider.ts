@@ -3,18 +3,50 @@ import type { VerseRef } from "../types";
 import type { BookInfo, BibleProvider } from "../provider";
 import { bookNameById } from "../books";
 import type { SqliteSchemaConfig } from "./schemaConfig";
+import { resolveSqliteSchema } from "./schemaInspect";
 
-type SqlJsModule = Awaited<
-  ReturnType<(typeof import("sql.js"))["default"]>
->;
+/** sql.js init result: constructor for in-memory DB instances */
+type SqlJsModule = { Database: new (data?: Uint8Array) => Database };
 
 let sqlJsPromise: Promise<SqlJsModule> | null = null;
+
+function resolveInitSqlJs(mod: unknown): (opts?: {
+  locateFile?: (file: string) => string;
+}) => Promise<SqlJsModule> {
+  if (typeof mod === "function") {
+    return mod as (opts?: {
+      locateFile?: (file: string) => string;
+    }) => Promise<SqlJsModule>;
+  }
+  const m = mod as Record<string, unknown>;
+  const d = m.default;
+  const fn =
+    typeof d === "function"
+      ? d
+      : d !== null &&
+          typeof d === "object" &&
+          typeof (d as { default?: unknown }).default === "function"
+        ? (d as { default: (...args: unknown[]) => unknown }).default
+        : typeof m.initSqlJs === "function"
+          ? m.initSqlJs
+          : undefined;
+  if (typeof fn !== "function") {
+    throw new Error(
+      "sql.js: initSqlJs is not a function (check Vite / ESM interop).",
+    );
+  }
+  return fn as (opts?: {
+    locateFile?: (file: string) => string;
+  }) => Promise<SqlJsModule>;
+}
 
 async function loadSqlJs(): Promise<SqlJsModule> {
   if (!sqlJsPromise) {
     sqlJsPromise = (async () => {
-      const { default: initSqlJs } = await import("sql.js");
-      const wasmUrl = (await import("sql.js/dist/sql-wasm.wasm?url")).default;
+      const mod = await import("sql.js/dist/sql-wasm-browser.js");
+      const wasmUrl = (await import("sql.js/dist/sql-wasm-browser.wasm?url"))
+        .default;
+      const initSqlJs = resolveInitSqlJs(mod);
       return initSqlJs({ locateFile: () => wasmUrl });
     })();
   }
@@ -41,19 +73,21 @@ export class SqliteBibleProvider implements BibleProvider {
     return this.db !== null;
   }
 
-  async loadFile(file: File): Promise<void> {
+  async loadFile(file: File): Promise<SqliteSchemaConfig> {
     const buf = await file.arrayBuffer();
-    await this.loadArrayBuffer(buf);
+    return this.loadArrayBuffer(buf);
   }
 
-  async loadArrayBuffer(buf: ArrayBuffer): Promise<void> {
+  async loadArrayBuffer(buf: ArrayBuffer): Promise<SqliteSchemaConfig> {
     const SQL = await loadSqlJs();
     if (this.db) {
       this.db.close();
       this.db = null;
     }
     this.db = new SQL.Database(new Uint8Array(buf));
+    this.schema = resolveSqliteSchema(this.db, this.schema);
     await this.hydrateBookNames();
+    return this.schema;
   }
 
   close(): void {

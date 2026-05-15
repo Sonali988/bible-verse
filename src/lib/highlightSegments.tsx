@@ -23,6 +23,7 @@ function mergeRanges(ranges: HighlightRange[]): HighlightRange[] {
 export function highlightSegments(
   text: string,
   ranges: HighlightRange[],
+  highlightColor: string,
 ): ReactNode[] {
   const merged = mergeRanges(
     ranges
@@ -46,7 +47,7 @@ export function highlightSegments(
         key={key++}
         style={{
           backgroundColor: "transparent",
-          color: "#f1a600",
+          color: highlightColor,
           fontWeight: 700,
           padding: 0,
           borderRadius: 0,

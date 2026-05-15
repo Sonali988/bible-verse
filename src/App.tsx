@@ -11,8 +11,10 @@ import {
   clampLayoutTextToLeftHalf,
   cloneLayout,
   defaultTypography,
+  mergePageTypography,
   normalizeTypography,
   type LayoutSpec,
+  type PageTypographySizeOverrides,
   type TypographySpec,
   type VersePage,
   type VerseRef,
@@ -108,6 +110,8 @@ export default function App() {
   const [bundledStatus, setBundledStatus] = useState<
     "idle" | "loading" | "loaded" | "missing"
   >("idle");
+  const [sqliteFileErr, setSqliteFileErr] = useState<string | null>(null);
+  const [sqliteLoadNote, setSqliteLoadNote] = useState<string | null>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
   const selected = pages.find((p) => p.id === selectedId) ?? null;
@@ -161,7 +165,7 @@ export default function App() {
       try {
         const pEn = new SqliteBibleProvider(LABEL_EN, schemaEnBoot);
         const pHi = new SqliteBibleProvider(LABEL_HI, schemaHiBoot);
-        await Promise.all([
+        const [resolvedEn, resolvedHi] = await Promise.all([
           pEn.loadArrayBuffer(bufEn),
           pHi.loadArrayBuffer(bufHi),
         ]);
@@ -170,6 +174,10 @@ export default function App() {
           pHi.close();
           return;
         }
+        setSchemaEn(resolvedEn);
+        setSchemaHi(resolvedHi);
+        setSchemaEnJson(JSON.stringify(resolvedEn, null, 2));
+        setSchemaHiJson(JSON.stringify(resolvedHi, null, 2));
         setProviderEn((prev) => {
           if (prev instanceof SqliteBibleProvider) prev.close();
           return pEn;
@@ -180,8 +188,23 @@ export default function App() {
         });
         setUseSample(false);
         setBundledStatus("loaded");
-      } catch {
-        if (!ac.signal.aborted) setBundledStatus("missing");
+        setSqliteFileErr(null);
+        const notes: string[] = [];
+        if (JSON.stringify(resolvedEn) !== JSON.stringify(schemaEnBoot)) {
+          notes.push(`English table "${resolvedEn.verseTable}" auto-detected.`);
+        }
+        if (JSON.stringify(resolvedHi) !== JSON.stringify(schemaHiBoot)) {
+          notes.push(`Hindi table "${resolvedHi.verseTable}" auto-detected.`);
+        }
+        setSqliteLoadNote(notes.length ? notes.join(" ") : null);
+      } catch (e) {
+        if (!ac.signal.aborted) {
+          setBundledStatus("missing");
+          setSqliteLoadNote(null);
+          setSqliteFileErr(
+            e instanceof Error ? e.message : String(e),
+          );
+        }
       }
     })();
     return () => ac.abort();
@@ -218,6 +241,9 @@ export default function App() {
   const resetCardDesign = () => {
     setCardLayout(cloneLayout(CARD_LAYOUT));
     setTypography(normalizeTypography(defaultTypography()));
+    setPages((ps) =>
+      ps.map(({ typographySizes: _ts, ...rest }) => ({ ...rest })),
+    );
   };
 
   const onBgFile = (file: File | null) => {
@@ -243,22 +269,40 @@ export default function App() {
     lang: "en" | "hi",
   ): Promise<void> => {
     if (!file) return;
-    const schema = lang === "en" ? schemaEn : schemaHi;
-    const label = lang === "en" ? LABEL_EN : LABEL_HI;
-    const prov = new SqliteBibleProvider(label, schema);
-    await prov.loadFile(file);
-    if (lang === "en") {
-      setProviderEn((prev) => {
-        if (prev instanceof SqliteBibleProvider) prev.close();
-        return prov;
-      });
-    } else {
-      setProviderHi((prev) => {
-        if (prev instanceof SqliteBibleProvider) prev.close();
-        return prov;
-      });
+    setSqliteFileErr(null);
+    setSqliteLoadNote(null);
+    try {
+      const configured = lang === "en" ? schemaEn : schemaHi;
+      const label = lang === "en" ? LABEL_EN : LABEL_HI;
+      const prov = new SqliteBibleProvider(label, configured);
+      const resolved = await prov.loadFile(file);
+      if (lang === "en") {
+        setSchemaEn(resolved);
+        setSchemaEnJson(JSON.stringify(resolved, null, 2));
+        setProviderEn((prev) => {
+          if (prev instanceof SqliteBibleProvider) prev.close();
+          return prov;
+        });
+      } else {
+        setSchemaHi(resolved);
+        setSchemaHiJson(JSON.stringify(resolved, null, 2));
+        setProviderHi((prev) => {
+          if (prev instanceof SqliteBibleProvider) prev.close();
+          return prov;
+        });
+      }
+      setUseSample(false);
+      if (JSON.stringify(resolved) !== JSON.stringify(configured)) {
+        setSqliteLoadNote(
+          `${lang === "en" ? "English" : "Hindi"} schema auto-detected from your file (table "${resolved.verseTable}") — JSON updated above.`,
+        );
+      }
+    } catch (e) {
+      setSqliteLoadNote(null);
+      setSqliteFileErr(
+        e instanceof Error ? e.message : `Could not load ${lang} database: ${String(e)}`,
+      );
     }
-    setUseSample(false);
   };
 
   const cardPage = exportPage ?? selected ?? pages[0] ?? null;
@@ -341,6 +385,20 @@ export default function App() {
     [],
   );
 
+  const updateFontSizesForSelected = useCallback(
+    (patch: PageTypographySizeOverrides) => {
+      if (!selectedId) return;
+      setPages((list) =>
+        list.map((p) =>
+          p.id !== selectedId
+            ? p
+            : { ...p, typographySizes: { ...p.typographySizes, ...patch } },
+        ),
+      );
+    },
+    [selectedId],
+  );
+
   /** Scale preview so ~1920px card fits typical viewports; frame keeps true 16:9 box. */
   const previewScale = useMemo(
     () =>
@@ -366,26 +424,23 @@ export default function App() {
   const cardBackgroundUrl =
     bgDataUrl && bgDataUrl.trim().length > 0 ? bgDataUrl : defaultPublicCardBgHref;
 
+  const selectedFontTypography = useMemo(
+    () =>
+      selected
+        ? mergePageTypography(typography, selected)
+        : typography,
+    [typography, selected],
+  );
+
   return (
     <>
       <header className="app-header">
         <h1>Bible verse cards</h1>
         <p className="sub">
-          Parallel {LABEL_EN} + {LABEL_HI}. Adjust layout and type in the form below, then export
-          PNG or ZIP.
+          Parallel {LABEL_EN} + {LABEL_HI}. Load SQLite and schema at the top, design the card in{" "}
+          <strong>Edit card</strong>, then export PNG or ZIP.
         </p>
       </header>
-
-      <section className="panel">
-        <h2>Edit card</h2>
-        <DesignToolbar
-          layout={cardLayout}
-          onUpdateLayout={updateCardLayout}
-          typography={typography}
-          onUpdateTypography={updateTypography}
-          onResetDesign={resetCardDesign}
-        />
-      </section>
 
       <section className="panel">
         <h2>SQLite sources</h2>
@@ -402,10 +457,9 @@ export default function App() {
         {bundledStatus === "missing" && (
           <p className="hint">
             No bundled pair found at the default URLs (or fetch failed). Auto-load needs{" "}
-            <strong>both</strong> <code>/bibles/nkjv.sqlite</code> and <code>/bibles/bsiov.sqlite</code>{" "}
-            (restart dev server after adding files). If only English is in{" "}
-            <code>public/bibles/</code>, add the Hindi file too or use the manual pickers. See{" "}
-            <code>public/bibles/README.txt</code>.
+            <strong>both</strong> SQLite files under <code>public/bibles/</code> (see{" "}
+            <code>public/bibles/README.txt</code>). You can still load databases with the manual
+            file pickers below. If only one language file is present, add the other or use pickers.
           </p>
         )}
         <label className="btn-row" style={{ flexDirection: "row", alignItems: "center" }}>
@@ -417,11 +471,11 @@ export default function App() {
           Use built-in sample verses (John 3:16) for layout testing
         </label>
         <p className="hint" style={{ marginTop: "0.75rem" }}>
-          <strong>Manual file pickers</strong> below only show a path after <em>you</em> click and
-          choose a file from your PC. They are <strong>not</strong> connected to{" "}
-          <code>public/bibles/</code> — the browser cannot display &quot;nkjv.sqlite&quot; there
-          automatically. Bundled DBs load in the background via URL (see messages above); use
-          these inputs only if you want to override without rebuilding.
+          <strong>Manual file pickers</strong> work anytime: choose an <code>.sqlite</code> file from
+          your PC to load that Bible. Loading a file turns off sample mode for this session. The
+          pickers are not the same as files in <code>public/bibles/</code> (those load automatically
+          when both URLs return 200). After changing schema JSON, click <strong>Apply schema JSON</strong>{" "}
+          before loading again if your table layout changed.
         </p>
         <div className="grid2" style={{ marginTop: "0.75rem" }}>
           <label>
@@ -429,7 +483,6 @@ export default function App() {
             <input
               type="file"
               accept=".sqlite,.db,application/x-sqlite3,*/*"
-              disabled={useSample}
               onChange={(e) =>
                 void loadSqlite(e.target.files?.[0] ?? null, "en")
               }
@@ -440,17 +493,63 @@ export default function App() {
             <input
               type="file"
               accept=".sqlite,.db,application/x-sqlite3,*/*"
-              disabled={useSample}
               onChange={(e) =>
                 void loadSqlite(e.target.files?.[0] ?? null, "hi")
               }
             />
           </label>
         </div>
+        {sqliteFileErr && <p className="error">{sqliteFileErr}</p>}
+        {sqliteLoadNote && <p className="muted">{sqliteLoadNote}</p>}
         <p className="hint" style={{ marginTop: "0.65rem" }}>
-          Schema JSON (below) is applied when you click &quot;Apply schema JSON&quot; and on the
-          next SQLite file load. Adjust table and column names to match your database.
+          Schema JSON in <strong>Background &amp; database schema</strong> (next section) is applied when
+          you click &quot;Apply schema JSON&quot; and on the next SQLite file load. Adjust table and column
+          names to match your database.
         </p>
+      </section>
+
+      <section className="panel">
+        <h2>Background &amp; database schema</h2>
+        <p className="hint" style={{ marginTop: 0 }}>
+          Canvas size, text box positions, fonts, and colors are edited in <strong>Edit card</strong>{" "}
+          below and saved to localStorage. Code defaults live in{" "}
+          <code>src/bible/types.ts</code> (<code>CARD_LAYOUT</code> + <code>reset</code>).
+        </p>
+        <label>
+          Background image
+          <input type="file" accept="image/*" onChange={(e) => onBgFile(e.target.files?.[0] ?? null)} />
+        </label>
+        <p className="hint" style={{ marginTop: "0.35rem" }}>
+          With no upload, the card loads <code>public/bg.png</code> from the dev server. Replace that
+          file on disk, then refresh (or restart dev) if you do not see the update. Uploads must be a
+          normal browser image type (PNG, JPEG, WebP); HEIC often will not display.
+        </p>
+        <label style={{ marginTop: "0.65rem" }}>
+          English DB schema JSON
+          <textarea rows={8} value={schemaEnJson} onChange={(e) => setSchemaEnJson(e.target.value)} />
+        </label>
+        <label>
+          Hindi DB schema JSON
+          <textarea rows={8} value={schemaHiJson} onChange={(e) => setSchemaHiJson(e.target.value)} />
+        </label>
+        {parseErr && <p className="error">{parseErr}</p>}
+        <button type="button" className="btn btn--primary" onClick={applySchemaJson}>
+          Apply schema JSON
+        </button>
+      </section>
+
+      <section className="panel">
+        <h2>Edit card</h2>
+        <DesignToolbar
+          layout={cardLayout}
+          onUpdateLayout={updateCardLayout}
+          typography={typography}
+          fontTypography={selectedFontTypography}
+          fontSizesEnabled={Boolean(selected)}
+          onUpdateTypography={updateTypography}
+          onUpdateFontSizes={updateFontSizesForSelected}
+          onResetDesign={resetCardDesign}
+        />
       </section>
 
       <ReferencePicker
@@ -547,36 +646,6 @@ export default function App() {
         </section>
       )}
 
-      <section className="panel">
-        <h2>Background &amp; database schema</h2>
-        <p className="hint" style={{ marginTop: 0 }}>
-          Canvas size, text box positions, fonts, and colors are edited in <strong>Edit card</strong>{" "}
-          above and saved to localStorage. Code defaults live in{" "}
-          <code>src/bible/types.ts</code> (<code>CARD_LAYOUT</code> + <code>reset</code>).
-        </p>
-        <label>
-          Background image
-          <input type="file" accept="image/*" onChange={(e) => onBgFile(e.target.files?.[0] ?? null)} />
-        </label>
-        <p className="hint" style={{ marginTop: "0.35rem" }}>
-          With no upload, the card loads <code>public/bg.png</code> from the dev server. Replace that
-          file on disk, then refresh (or restart dev) if you do not see the update. Uploads must be a
-          normal browser image type (PNG, JPEG, WebP); HEIC often will not display.
-        </p>
-        <label style={{ marginTop: "0.65rem" }}>
-          English DB schema JSON
-          <textarea rows={8} value={schemaEnJson} onChange={(e) => setSchemaEnJson(e.target.value)} />
-        </label>
-        <label>
-          Hindi DB schema JSON
-          <textarea rows={8} value={schemaHiJson} onChange={(e) => setSchemaHiJson(e.target.value)} />
-        </label>
-        {parseErr && <p className="error">{parseErr}</p>}
-        <button type="button" className="btn btn--primary" onClick={applySchemaJson}>
-          Apply schema JSON
-        </button>
-      </section>
-
       {pages.length > 0 && (
         <section className="panel">
           <h2>Card preview</h2>
@@ -628,7 +697,7 @@ export default function App() {
                     >
                       <VerseCard
                         layout={cardLayout}
-                        typography={typography}
+                        typography={mergePageTypography(typography, p)}
                         page={p}
                         backgroundDataUrl={cardBackgroundUrl}
                         versionLabelEn={LABEL_EN}
@@ -673,7 +742,10 @@ export default function App() {
           >
             <VerseCard
               layout={cardLayout}
-              typography={typography}
+              typography={mergePageTypography(
+                typography,
+                exportPage ?? selected ?? pages[0],
+              )}
               page={exportPage ?? selected ?? pages[0]}
               backgroundDataUrl={cardBackgroundUrl}
               versionLabelEn={LABEL_EN}

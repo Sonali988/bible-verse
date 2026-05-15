@@ -33,8 +33,18 @@ export function ReferencePicker({
     }
     let cancelled = false;
     void (async () => {
-      const b = await providerEn.listBooks();
-      if (!cancelled) setBooks(b);
+      try {
+        const b = await providerEn.listBooks();
+        if (!cancelled) {
+          setBooks(b);
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setBooks([]);
+          setError(e instanceof Error ? e.message : String(e));
+        }
+      }
     })();
     return () => {
       cancelled = true;

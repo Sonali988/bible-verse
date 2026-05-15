@@ -1,10 +1,15 @@
-import type { LayoutSpec, Rect, TypographySpec } from "../bible/types";
+import type { LayoutSpec, Rect, TypographySpec, PageTypographySizeOverrides } from "../bible/types";
 
 type Props = {
   layout: LayoutSpec;
   onUpdateLayout: (fn: (prev: LayoutSpec) => LayoutSpec) => void;
   typography: TypographySpec;
+  /** Merged global + selected card font sizes (for “Font sizes” row only). */
+  fontTypography: TypographySpec;
+  /** When false, font size inputs are disabled (sizes apply only to the selected queue card). */
+  fontSizesEnabled: boolean;
   onUpdateTypography: (fn: (prev: TypographySpec) => TypographySpec) => void;
+  onUpdateFontSizes: (patch: PageTypographySizeOverrides) => void;
   onResetDesign: () => void;
 };
 
@@ -20,6 +25,7 @@ function Num({
   min,
   max,
   step = 1,
+  disabled = false,
 }: {
   label: string;
   value: number;
@@ -27,6 +33,7 @@ function Num({
   min?: number;
   max?: number;
   step?: number;
+  disabled?: boolean;
 }) {
   return (
     <label className="toolbar-field">
@@ -37,6 +44,41 @@ function Num({
         min={min}
         max={max}
         step={step}
+        disabled={disabled}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+    </label>
+  );
+}
+
+function PxSlider({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  disabled = false,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+  min: number;
+  max: number;
+  disabled?: boolean;
+}) {
+  const safeValue = Number.isFinite(value) ? Math.round(value) : min;
+  return (
+    <label className="toolbar-field">
+      <span>
+        {label}: {safeValue}
+      </span>
+      <input
+        type="range"
+        value={safeValue}
+        min={min}
+        max={max}
+        step={1}
+        disabled={disabled}
         onChange={(e) => onChange(Number(e.target.value))}
       />
     </label>
@@ -115,7 +157,10 @@ export function DesignToolbar({
   layout,
   onUpdateLayout,
   typography,
+  fontTypography,
+  fontSizesEnabled,
   onUpdateTypography,
+  onUpdateFontSizes,
   onResetDesign,
 }: Props) {
   return (
@@ -161,68 +206,69 @@ export function DesignToolbar({
       <RectFields rectKey="bodyEn" layout={layout} onUpdateLayout={onUpdateLayout} />
 
       <p className="design-toolbar__section-label">Font sizes</p>
+      {!fontSizesEnabled && (
+        <p className="hint" style={{ marginBottom: "0.35rem" }}>
+          Select a card in the <strong>Page queue</strong> to change font sizes for that card only.
+        </p>
+      )}
       <div className="design-toolbar__row design-toolbar__row--controls">
         <Num
           label="Hindi title (px)"
-          value={typography.titleFontPxHi}
+          value={fontTypography.titleFontPxHi}
           min={8}
           max={200}
-          onChange={(titleFontPxHi) =>
-            onUpdateTypography((t) => ({ ...t, titleFontPxHi }))
-          }
+          disabled={!fontSizesEnabled}
+          onChange={(titleFontPxHi) => onUpdateFontSizes({ titleFontPxHi })}
         />
         <Num
           label="English title (px)"
-          value={typography.titleFontPxEn}
+          value={fontTypography.titleFontPxEn}
           min={8}
           max={200}
-          onChange={(titleFontPxEn) =>
-            onUpdateTypography((t) => ({ ...t, titleFontPxEn }))
-          }
+          disabled={!fontSizesEnabled}
+          onChange={(titleFontPxEn) => onUpdateFontSizes({ titleFontPxEn })}
         />
-        <Num
+        <PxSlider
           label="Hindi verse (px)"
-          value={typography.bodyFontPxHi}
+          value={fontTypography.bodyFontPxHi}
           min={6}
           max={400}
+          disabled={!fontSizesEnabled}
           onChange={(n) =>
-            onUpdateTypography((t) => ({
-              ...t,
-              bodyFontPxHi: clampVersePx(n, t.bodyFontPxHi),
-            }))
+            onUpdateFontSizes({
+              bodyFontPxHi: clampVersePx(n, fontTypography.bodyFontPxHi),
+            })
           }
         />
-        <Num
+        <PxSlider
           label="English verse (px)"
-          value={typography.bodyFontPxEn}
+          value={fontTypography.bodyFontPxEn}
           min={6}
           max={400}
+          disabled={!fontSizesEnabled}
           onChange={(n) =>
-            onUpdateTypography((t) => ({
-              ...t,
-              bodyFontPxEn: clampVersePx(n, t.bodyFontPxEn),
-            }))
+            onUpdateFontSizes({
+              bodyFontPxEn: clampVersePx(n, fontTypography.bodyFontPxEn),
+            })
           }
         />
         <Num
           label="Hindi verse line height"
-          value={typography.lineHeightHi}
+          value={fontTypography.lineHeightHi}
           min={1}
           max={3}
           step={0.05}
-          onChange={(lineHeightHi) =>
-            onUpdateTypography((t) => ({ ...t, lineHeightHi }))
-          }
+          disabled={!fontSizesEnabled}
+          onChange={(lineHeightHi) => onUpdateFontSizes({ lineHeightHi })}
         />
         <Num
           label="English verse line height"
-          value={typography.lineHeightEn}
+          value={fontTypography.lineHeightEn}
           min={1}
           max={3}
           step={0.05}
-          onChange={(lineHeightEn) =>
-            onUpdateTypography((t) => ({ ...t, lineHeightEn }))
-          }
+          disabled={!fontSizesEnabled}
+          onChange={(lineHeightEn) => onUpdateFontSizes({ lineHeightEn })}
         />
       </div>
 
@@ -271,6 +317,19 @@ export function DesignToolbar({
           />
         </label>
         <label className="toolbar-field">
+          <span>Highlight color</span>
+          <input
+            type="color"
+            value={normalizeHex(typography.highlightColor, "#f1a600")}
+            onChange={(e) =>
+              onUpdateTypography((t) => ({
+                ...t,
+                highlightColor: e.target.value,
+              }))
+            }
+          />
+        </label>
+        <label className="toolbar-field">
           <span>Verse align</span>
           <select
             value={typography.textAlign}
@@ -284,6 +343,7 @@ export function DesignToolbar({
             <option value="left">Left</option>
             <option value="center">Center</option>
             <option value="right">Right</option>
+            <option value="justify">Justify (fill line width)</option>
           </select>
         </label>
       </div>

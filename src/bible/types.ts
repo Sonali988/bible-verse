@@ -35,13 +35,28 @@ export type TypographySpec = {
   lineHeightEn: number;
   /** Hindi + English section titles (reference + version) */
   titleTextAlign: "left" | "center" | "right";
-  /** Hindi + English verse bodies */
-  textAlign: "left" | "center" | "right";
+  /** Hindi + English verse bodies (`justify` = lines stretch to box width) */
+  textAlign: "left" | "center" | "right" | "justify";
   /** Section titles (reference + version), e.g. `#ffffff` */
   titleColor: string;
   /** Verse body text (non-highlighted) */
   bodyColor: string;
+  /** Highlighted verse text color */
+  highlightColor: string;
 };
+
+/** Per-card overrides for toolbar “Font sizes” (titles + verse bodies + line heights). */
+export type PageTypographySizeOverrides = Partial<
+  Pick<
+    TypographySpec,
+    | "titleFontPxHi"
+    | "titleFontPxEn"
+    | "bodyFontPxHi"
+    | "bodyFontPxEn"
+    | "lineHeightHi"
+    | "lineHeightEn"
+  >
+>;
 
 export type VersePage = {
   id: string;
@@ -50,7 +65,19 @@ export type VersePage = {
   textHi: string;
   highlightsEn: HighlightRange[];
   highlightsHi: HighlightRange[];
+  /** When set, merges over global typography for font-size fields only. */
+  typographySizes?: PageTypographySizeOverrides;
 };
+
+/** Effective typography for rendering one card (global + optional per-page font sizes). */
+export function mergePageTypography(
+  global: TypographySpec,
+  page: VersePage,
+): TypographySpec {
+  const o = page.typographySizes;
+  if (!o || Object.keys(o).length === 0) return global;
+  return normalizeTypography({ ...global, ...o });
+}
 
 /**
  * Default card canvas and text regions (reset + initial load).
@@ -117,9 +144,10 @@ export const defaultTypography = (): TypographySpec => ({
   lineHeightHi: 1.25,
   lineHeightEn: 1.25,
   titleTextAlign: "center",
-  textAlign: "center",
+  textAlign: "justify",
   titleColor: "#ffffff",
   bodyColor: "#ffffff",
+  highlightColor: "#f1a600",
 });
 
 type RawTypography = Partial<TypographySpec> & {
@@ -210,15 +238,27 @@ function coerceAlignFields(t: TypographySpec): TypographySpec {
   const d = defaultTypography();
   return {
     ...t,
-    textAlign: coerceOneAlign(t.textAlign as string, d.textAlign),
-    titleTextAlign: coerceOneAlign(t.titleTextAlign as string, d.titleTextAlign),
+    textAlign: coerceVerseTextAlign(t.textAlign as string, d.textAlign),
+    titleTextAlign: coerceTitleTextAlign(
+      t.titleTextAlign as string,
+      d.titleTextAlign,
+    ),
   };
 }
 
-function coerceOneAlign(
+function coerceVerseTextAlign(
   v: string | undefined,
   fallback: TypographySpec["textAlign"],
 ): TypographySpec["textAlign"] {
+  if (v === "left" || v === "center" || v === "right" || v === "justify")
+    return v;
+  return fallback;
+}
+
+function coerceTitleTextAlign(
+  v: string | undefined,
+  fallback: TypographySpec["titleTextAlign"],
+): TypographySpec["titleTextAlign"] {
   if (v === "justify") return "center";
   if (v === "left" || v === "center" || v === "right") return v;
   return fallback;
