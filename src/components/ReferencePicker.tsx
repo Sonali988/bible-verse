@@ -1,7 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import type { BibleProvider } from "../bible/provider";
 import type { VerseRef } from "../bible/types";
 import { parseReference, formatReference } from "../lib/referenceParser";
+
+type SliderHoverTip = { verse: number; percent: number };
+
+function verseAtSliderPointer(
+  el: HTMLInputElement,
+  clientX: number,
+): SliderHoverTip {
+  const rect = el.getBoundingClientRect();
+  const width = rect.width || 1;
+  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / width));
+  const min = Number(el.min) || 1;
+  const max = Number(el.max) || min;
+  const verse = Math.round(min + ratio * (max - min));
+  return { verse, percent: ratio * 100 };
+}
 
 type Props = {
   providerEn: BibleProvider;
@@ -18,11 +33,11 @@ export function ReferencePicker({
   const [bookId, setBookId] = useState("");
   const [chapters, setChapters] = useState<number[]>([]);
   const [chapter, setChapter] = useState(1);
-  const [verseStart, setVerseStart] = useState(1);
-  const [verseEnd, setVerseEnd] = useState(1);
+  const [verse, setVerse] = useState(1);
   const [maxVerse, setMaxVerse] = useState(1);
   const [quick, setQuick] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [sliderHover, setSliderHover] = useState<SliderHoverTip | null>(null);
 
   const ready = providerEn.isReady() && providerHi.isReady();
 
@@ -79,8 +94,7 @@ export function ReferencePicker({
       const mv = await providerEn.getMaxVerse(bookId, chapter);
       if (cancelled) return;
       setMaxVerse(Math.max(1, mv));
-      setVerseStart((v) => Math.min(v, Math.max(1, mv)));
-      setVerseEnd((v) => Math.min(v, Math.max(1, mv)));
+      setVerse((v) => Math.min(v, Math.max(1, mv)));
     })();
     return () => {
       cancelled = true;
@@ -89,13 +103,8 @@ export function ReferencePicker({
 
   const refObj: VerseRef | null = useMemo(() => {
     if (!bookId) return null;
-    return {
-      bookId,
-      chapter,
-      verseStart,
-      verseEnd: Math.max(verseStart, verseEnd),
-    };
-  }, [bookId, chapter, verseStart, verseEnd]);
+    return { bookId, chapter, verse };
+  }, [bookId, chapter, verse]);
 
   const fetchPreview = async () => {
     setError(null);
@@ -120,14 +129,17 @@ export function ReferencePicker({
   const applyQuick = () => {
     const p = parseReference(quick);
     if (!p) {
-      setError("Could not parse reference. Example: John 3:16 or Jn 3:16-17");
+      setError("Could not parse reference. Example: John 3:16 or Jn 3:16");
       return;
     }
     setError(null);
     setBookId(p.bookId);
     setChapter(p.chapter);
-    setVerseStart(p.verseStart);
-    setVerseEnd(p.verseEnd);
+    setVerse(p.verse);
+  };
+
+  const onVerseSliderHover = (e: MouseEvent<HTMLInputElement>) => {
+    setSliderHover(verseAtSliderPointer(e.currentTarget, e.clientX));
   };
 
   return (
@@ -142,7 +154,7 @@ export function ReferencePicker({
           <input
             value={quick}
             onChange={(e) => setQuick(e.target.value)}
-            placeholder="e.g. John 3:16 or Jn 3:16-17"
+            placeholder="e.g. John 3:16 or Jn 3:16"
           />
         </label>
         <div className="btn-row">
@@ -180,27 +192,30 @@ export function ReferencePicker({
             ))}
           </select>
         </label>
-        <label>
-          Verse start
-          <input
-            type="number"
-            min={1}
-            max={maxVerse}
-            value={verseStart}
-            onChange={(e) => setVerseStart(Number(e.target.value))}
-            disabled={!ready}
-          />
-        </label>
-        <label>
-          Verse end
-          <input
-            type="number"
-            min={verseStart}
-            max={maxVerse}
-            value={verseEnd}
-            onChange={(e) => setVerseEnd(Number(e.target.value))}
-            disabled={!ready}
-          />
+        <label className="toolbar-field reference-picker-verse">
+          <span>Verse: {verse}</span>
+          <div className="reference-picker-verse-slider">
+            {sliderHover && ready && (
+              <span
+                className="reference-picker-verse-tooltip"
+                style={{ left: `${sliderHover.percent}%` }}
+              >
+                {sliderHover.verse}
+              </span>
+            )}
+            <input
+              type="range"
+              min={1}
+              max={maxVerse}
+              step={1}
+              value={verse}
+              onChange={(e) => setVerse(Number(e.target.value))}
+              onMouseMove={onVerseSliderHover}
+              onMouseEnter={onVerseSliderHover}
+              onMouseLeave={() => setSliderHover(null)}
+              disabled={!ready}
+            />
+          </div>
         </label>
       </div>
       {refObj && (

@@ -168,27 +168,20 @@ export class SqliteBibleProvider implements BibleProvider {
   async getPassage(ref: VerseRef): Promise<string> {
     const db = this.getDb();
     const s = this.schema;
-    const q = `SELECT ${quoteIdent(s.verseColumn)}, ${quoteIdent(s.textColumn)} FROM ${quoteIdent(s.verseTable)} WHERE ${quoteIdent(s.bookColumn)} = ? AND ${quoteIdent(s.chapterColumn)} = ? AND ${quoteIdent(s.verseColumn)} >= ? AND ${quoteIdent(s.verseColumn)} <= ? ORDER BY ${quoteIdent(s.verseColumn)}`;
+    const q = `SELECT ${quoteIdent(s.textColumn)} FROM ${quoteIdent(s.verseTable)} WHERE ${quoteIdent(s.bookColumn)} = ? AND ${quoteIdent(s.chapterColumn)} = ? AND ${quoteIdent(s.verseColumn)} = ? LIMIT 1`;
     const stmt = db.prepare(q);
     stmt.bind([
       bindBook(ref.bookId, s.bookIsNumeric),
       ref.chapter,
-      ref.verseStart,
-      ref.verseEnd,
+      ref.verse,
     ]);
-    const parts: string[] = [];
-    while (stmt.step()) {
+    let text = "";
+    if (stmt.step()) {
       const row = stmt.get();
-      const verseNum = Number(row[0]);
-      const text = String(row[1] ?? "").trim();
-      if (ref.verseStart === ref.verseEnd) {
-        parts.push(text);
-      } else {
-        parts.push(`${verseNum} ${text}`);
-      }
+      text = String(row[0] ?? "").trim();
     }
     stmt.free();
-    return parts.join(" ").trim();
+    return text;
   }
 }
 

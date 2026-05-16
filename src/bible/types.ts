@@ -1,8 +1,7 @@
 export type VerseRef = {
   bookId: string;
   chapter: number;
-  verseStart: number;
-  verseEnd: number;
+  verse: number;
 };
 
 export type HighlightRange = { start: number; end: number };
@@ -45,8 +44,8 @@ export type TypographySpec = {
   highlightColor: string;
 };
 
-/** Per-card overrides for toolbar “Font sizes” (titles + verse bodies + line heights). */
-export type PageTypographySizeOverrides = Partial<
+/** Per-card overrides (font sizes + title/verse style) for one preview variant only. */
+export type PageTypographyOverrides = Partial<
   Pick<
     TypographySpec,
     | "titleFontPxHi"
@@ -55,8 +54,16 @@ export type PageTypographySizeOverrides = Partial<
     | "bodyFontPxEn"
     | "lineHeightHi"
     | "lineHeightEn"
+    | "titleColor"
+    | "titleTextAlign"
+    | "bodyColor"
+    | "highlightColor"
+    | "textAlign"
   >
 >;
+
+/** @deprecated Use {@link PageTypographyOverrides}. */
+export type PageTypographySizeOverrides = PageTypographyOverrides;
 
 export type VersePage = {
   id: string;
@@ -65,16 +72,19 @@ export type VersePage = {
   textHi: string;
   highlightsEn: HighlightRange[];
   highlightsHi: HighlightRange[];
-  /** When set, merges over global typography for font-size fields only. */
-  typographySizes?: PageTypographySizeOverrides;
+  /** Live preview: per-card typography overrides (not shared with Resolume). */
+  typographySizes?: PageTypographyOverrides;
+  /** Resolume preview: per-card typography overrides (not shared with Live). */
+  resolumeTypographySizes?: PageTypographyOverrides;
 };
 
 /** Effective typography for rendering one card (global + optional per-page font sizes). */
 export function mergePageTypography(
   global: TypographySpec,
   page: VersePage,
+  sizesKey: "typographySizes" | "resolumeTypographySizes" = "typographySizes",
 ): TypographySpec {
-  const o = page.typographySizes;
+  const o = page[sizesKey];
   if (!o || Object.keys(o).length === 0) return global;
   return normalizeTypography({ ...global, ...o });
 }
@@ -92,6 +102,24 @@ export const CARD_LAYOUT: LayoutSpec = {
   titleEn: { x: 50, y: 634, width: 880, height: 56 },
   bodyEn: { x: 50, y: 706, width: 880, height: 374 },
 };
+
+/**
+ * Resolume output: combined title line, then Hindi verse, then English verse.
+ * `titleHi` stores the combined title box; `titleEn` is unused by ResolumeVerseCard.
+ */
+/** Title at y 70; 20px gap between title, Hindi verse, and English verse. */
+export const RESOLUME_CARD_LAYOUT: LayoutSpec = {
+  width: 1920,
+  height: 1080,
+  titleHi: { x: 70, y: 70, width: 1780, height: 115 },
+  bodyHi: { x: 90, y: 205, width: 1740, height: 380 },
+  titleEn: { x: 0, y: 0, width: 0, height: 0 },
+  bodyEn: { x: 90, y: 605, width: 1740, height: 380 },
+};
+
+export function cloneResolumeLayout(): LayoutSpec {
+  return cloneLayout(RESOLUME_CARD_LAYOUT);
+}
 
 export function cloneLayout(layout: LayoutSpec): LayoutSpec {
   return {
@@ -148,6 +176,17 @@ export const defaultTypography = (): TypographySpec => ({
   titleColor: "#ffffff",
   bodyColor: "#ffffff",
   highlightColor: "#f1a600",
+});
+
+/** Resolume defaults: 56px Hindi / 58px English verse bodies. */
+export const defaultResolumeTypography = (): TypographySpec => ({
+  ...defaultTypography(),
+  titleFontPxHi: 56,
+  titleFontPxEn: 58,
+  bodyFontPxHi: 56,
+  bodyFontPxEn: 58,
+  titleTextAlign: "center",
+  textAlign: "center",
 });
 
 type RawTypography = Partial<TypographySpec> & {

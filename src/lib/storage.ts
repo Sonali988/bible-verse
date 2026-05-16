@@ -4,11 +4,14 @@ import {
   type TypographySpec,
   type VersePage,
 } from "../bible/types";
+import { normalizeVerseRef } from "./referenceParser";
 import type { SqliteSchemaConfig } from "../bible/sqlite/schemaConfig";
 
 const K_PAGES = "bvc:pages";
 const K_CARD_LAYOUT = "bvc:cardLayout";
+const K_RESOLUME_LAYOUT = "bvc:resolumeLayout";
 const K_TYPO = "bvc:typography";
+const K_RESOLUME_TYPO = "bvc:resolumeTypography";
 const K_SCHEMA_EN = "bvc:schemaEn";
 const K_SCHEMA_HI = "bvc:schemaHi";
 
@@ -27,7 +30,9 @@ function isValidLayout(value: unknown): value is LayoutSpec {
 export type PersistedState = {
   pages: VersePage[];
   cardLayout: LayoutSpec;
+  resolumeLayout: LayoutSpec;
   typography: TypographySpec;
+  resolumeTypography: TypographySpec;
   schemaEn: SqliteSchemaConfig;
   schemaHi: SqliteSchemaConfig;
 };
@@ -35,17 +40,32 @@ export type PersistedState = {
 export function loadPersisted(): Partial<PersistedState> {
   try {
     localStorage.removeItem("bvc:layout");
-    const pages = JSON.parse(
+    const pagesRaw = JSON.parse(
       localStorage.getItem(K_PAGES) ?? "null",
     ) as VersePage[] | null;
+    const pages = pagesRaw
+      ?.map((p) => {
+        const ref = normalizeVerseRef(p.ref);
+        return ref ? { ...p, ref } : null;
+      })
+      .filter((p): p is VersePage => p !== null);
     const cardLayoutRaw = JSON.parse(
       localStorage.getItem(K_CARD_LAYOUT) ?? "null",
     );
     const cardLayout = isValidLayout(cardLayoutRaw)
       ? cloneLayout(cardLayoutRaw)
       : undefined;
+    const resolumeLayoutRaw = JSON.parse(
+      localStorage.getItem(K_RESOLUME_LAYOUT) ?? "null",
+    );
+    const resolumeLayout = isValidLayout(resolumeLayoutRaw)
+      ? cloneLayout(resolumeLayoutRaw)
+      : undefined;
     const typography = JSON.parse(
       localStorage.getItem(K_TYPO) ?? "null",
+    ) as TypographySpec | null;
+    const resolumeTypography = JSON.parse(
+      localStorage.getItem(K_RESOLUME_TYPO) ?? "null",
     ) as TypographySpec | null;
     const schemaEn = JSON.parse(
       localStorage.getItem(K_SCHEMA_EN) ?? "null",
@@ -56,7 +76,9 @@ export function loadPersisted(): Partial<PersistedState> {
     return {
       pages: pages ?? undefined,
       cardLayout,
+      resolumeLayout,
       typography: typography ?? undefined,
+      resolumeTypography: resolumeTypography ?? undefined,
       schemaEn: schemaEn ?? undefined,
       schemaHi: schemaHi ?? undefined,
     };
@@ -68,7 +90,9 @@ export function loadPersisted(): Partial<PersistedState> {
 export function savePersisted(state: PersistedState): void {
   localStorage.setItem(K_PAGES, JSON.stringify(state.pages));
   localStorage.setItem(K_CARD_LAYOUT, JSON.stringify(state.cardLayout));
+  localStorage.setItem(K_RESOLUME_LAYOUT, JSON.stringify(state.resolumeLayout));
   localStorage.setItem(K_TYPO, JSON.stringify(state.typography));
+  localStorage.setItem(K_RESOLUME_TYPO, JSON.stringify(state.resolumeTypography));
   localStorage.setItem(K_SCHEMA_EN, JSON.stringify(state.schemaEn));
   localStorage.setItem(K_SCHEMA_HI, JSON.stringify(state.schemaHi));
 }

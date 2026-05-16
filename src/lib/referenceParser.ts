@@ -125,18 +125,26 @@ for (const b of STANDARD_BOOKS) {
   NAME_TO_ID.set(b.name.toLowerCase(), b.id);
 }
 
+/** Migrates legacy `verseStart` / `verseEnd` persisted refs to a single verse. */
+export function normalizeVerseRef(raw: unknown): VerseRef | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const bookId = String(r.bookId ?? "");
+  const chapter = Number(r.chapter);
+  const verse = Number(r.verse ?? r.verseStart ?? 0);
+  if (!bookId || !chapter || !verse) return null;
+  return { bookId, chapter, verse };
+}
+
 export function parseReference(input: string): VerseRef | null {
   const s = input.trim();
   if (!s) return null;
-  const m = s.match(
-    /^([\w.\s]+?)\s+(\d+)\s*:\s*(\d+)(?:\s*-\s*(\d+))?\s*$/i,
-  );
+  const m = s.match(/^([\w.\s]+?)\s+(\d+)\s*:\s*(\d+)\s*$/i);
   if (!m) return null;
   const bookPart = m[1].trim().replace(/\./g, "").toLowerCase();
   const chapter = Number(m[2]);
-  const verseStart = Number(m[3]);
-  const verseEnd = m[4] ? Number(m[4]) : verseStart;
-  if (!chapter || !verseStart || verseEnd < verseStart) return null;
+  const verse = Number(m[3]);
+  if (!chapter || !verse) return null;
 
   const bookId =
     ABBREV.get(bookPart) ??
@@ -144,23 +152,17 @@ export function parseReference(input: string): VerseRef | null {
     NAME_TO_ID.get(bookPart);
   if (!bookId) return null;
 
-  return { bookId, chapter, verseStart, verseEnd };
+  return { bookId, chapter, verse };
 }
 
 export function formatReference(ref: VerseRef): string {
   const name =
     STANDARD_BOOKS.find((b) => b.id === ref.bookId)?.name ?? `Book ${ref.bookId}`;
-  if (ref.verseStart === ref.verseEnd) {
-    return `${name} ${ref.chapter}:${ref.verseStart}`;
-  }
-  return `${name} ${ref.chapter}:${ref.verseStart}-${ref.verseEnd}`;
+  return `${name} ${ref.chapter}:${ref.verse}`;
 }
 
-/** Hindi book name + chapter:verse(s), e.g. `गलातियों 3:5` or `गलातियों 3:5-7`. */
+/** Hindi book name + chapter:verse, e.g. `गलातियों 3:5`. */
 export function formatHindiReference(ref: VerseRef): string {
   const name = hindiBookNameById(ref.bookId);
-  if (ref.verseStart === ref.verseEnd) {
-    return `${name} ${ref.chapter}:${ref.verseStart}`;
-  }
-  return `${name} ${ref.chapter}:${ref.verseStart}-${ref.verseEnd}`;
+  return `${name} ${ref.chapter}:${ref.verse}`;
 }

@@ -53,14 +53,6 @@ export class StaticJsonProvider implements BibleProvider {
   }
 
   async getPassage(ref: VerseRef): Promise<string> {
-    const parts: string[] = [];
-    for (let v = ref.verseStart; v <= ref.verseEnd; v++) {
-      const t = this.data[ref.bookId]?.[ref.chapter]?.[v];
-      if (t) {
-        if (ref.verseStart === ref.verseEnd) parts.push(t);
-        else parts.push(`${v} ${t}`);
-      }
-    }
-    return parts.join(" ").trim();
+    return (this.data[ref.bookId]?.[ref.chapter]?.[ref.verse] ?? "").trim();
   }
 }

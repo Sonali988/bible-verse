@@ -10,11 +10,13 @@ import {
   CARD_LAYOUT,
   clampLayoutTextToLeftHalf,
   cloneLayout,
+  cloneResolumeLayout,
+  defaultResolumeTypography,
   defaultTypography,
   mergePageTypography,
   normalizeTypography,
   type LayoutSpec,
-  type PageTypographySizeOverrides,
+  type PageTypographyOverrides,
   type TypographySpec,
   type VersePage,
   type VerseRef,
@@ -22,7 +24,9 @@ import {
 import { ReferencePicker } from "./components/ReferencePicker";
 import { HighlightEditor } from "./components/HighlightEditor";
 import { VerseCard } from "./components/VerseCard";
+import { ResolumeVerseCard } from "./components/ResolumeVerseCard";
 import { DesignToolbar } from "./components/DesignToolbar";
+import { CardPreviewTypographyControls } from "./components/CardPreviewTypographyControls";
 import { renderNodeToPng } from "./export/renderPng";
 import { savePng, zipBlobs } from "./export/downloadZip";
 import { formatReference } from "./lib/referenceParser";
@@ -53,6 +57,16 @@ function defaultCardBackgroundHref(): string {
 function sanitizeFileName(s: string): string {
   return s.replace(/[^\w\u0900-\u0fff-]+/g, "_").replace(/_+/g, "_").slice(0, 120);
 }
+
+function datedZipFileName(suffix: string): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}-${suffix}.zip`;
+}
+
+type ExportVariant = "live" | "resolume";
 
 async function nextFrames(n: number): Promise<void> {
   for (let i = 0; i < n; i++) {
@@ -85,6 +99,12 @@ export default function App() {
   const [typography, setTypography] = useState<TypographySpec>(() =>
     normalizeTypography(persisted.typography ?? null),
   );
+  const [resolumeLayout] = useState<LayoutSpec>(() =>
+    persisted.resolumeLayout ?? cloneResolumeLayout(),
+  );
+  const [resolumeTypography] = useState<TypographySpec>(() =>
+    normalizeTypography(persisted.resolumeTypography ?? defaultResolumeTypography()),
+  );
   const [schemaEnJson, setSchemaEnJson] = useState(() =>
     JSON.stringify(persisted.schemaEn ?? defaultSqliteSchema(), null, 2),
   );
@@ -105,6 +125,7 @@ export default function App() {
   } | null>(null);
 
   const [exportPage, setExportPage] = useState<VersePage | null>(null);
+  const [exportVariant, setExportVariant] = useState<ExportVariant>("live");
   const [exportBusy, setExportBusy] = useState(false);
   const [parseErr, setParseErr] = useState<string | null>(null);
   const [bundledStatus, setBundledStatus] = useState<
@@ -112,7 +133,10 @@ export default function App() {
   >("idle");
   const [sqliteFileErr, setSqliteFileErr] = useState<string | null>(null);
   const [sqliteLoadNote, setSqliteLoadNote] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
+  const exportResolumeRef = useRef<HTMLDivElement>(null);
+  const sidebarId = "app-sidebar-panel";
 
   const selected = pages.find((p) => p.id === selectedId) ?? null;
 
@@ -135,10 +159,12 @@ export default function App() {
       pages,
       cardLayout,
       typography,
+      resolumeLayout,
+      resolumeTypography,
       schemaEn,
       schemaHi,
     });
-  }, [pages, cardLayout, typography, schemaEn, schemaHi]);
+  }, [pages, cardLayout, typography, resolumeLayout, resolumeTypography, schemaEn, schemaHi]);
 
   useEffect(() => {
     if (selectedId && !pages.some((p) => p.id === selectedId)) {
@@ -242,7 +268,9 @@ export default function App() {
     setCardLayout(cloneLayout(CARD_LAYOUT));
     setTypography(normalizeTypography(defaultTypography()));
     setPages((ps) =>
-      ps.map(({ typographySizes: _ts, ...rest }) => ({ ...rest })),
+      ps.map(({ typographySizes: _ts, resolumeTypographySizes: _rs, ...rest }) => ({
+        ...rest,
+      })),
     );
   };
 
@@ -307,17 +335,22 @@ export default function App() {
 
   const cardPage = exportPage ?? selected ?? pages[0] ?? null;
 
-  const capturePngBlob = async (page: VersePage): Promise<Blob> => {
+  const capturePngBlob = async (
+    page: VersePage,
+    variant: ExportVariant,
+  ): Promise<Blob> => {
     setExportPage(page);
+    setExportVariant(variant);
     await nextFrames(2);
     await document.fonts.ready;
-    const node = exportRef.current;
+    const layout = variant === "live" ? cardLayout : resolumeLayout;
+    const node =
+      variant === "live" ? exportRef.current : exportResolumeRef.current;
     if (!node) throw new Error("Export node missing");
-    // Use measured box so PNG matches layout (avoids stretch when off-screen / subpixel ≠ cardLayout).
     const ow = Math.round(node.offsetWidth);
     const oh = Math.round(node.offsetHeight);
-    const w = ow > 0 ? ow : cardLayout.width;
-    const h = oh > 0 ? oh : cardLayout.height;
+    const w = ow > 0 ? ow : layout.width;
+    const h = oh > 0 ? oh : layout.height;
     return renderNodeToPng(node, { width: w, height: h });
   };
 
@@ -325,7 +358,7 @@ export default function App() {
     if (!selected) return;
     setExportBusy(true);
     try {
-      const blob = await capturePngBlob(selected);
+      const blob = await capturePngBlob(selected, "live");
       const name = `${sanitizeFileName(formatReference(selected.ref))}.png`;
       savePng(blob, name);
     } finally {
@@ -334,21 +367,25 @@ export default function App() {
     }
   };
 
-  const downloadZip = async () => {
+  const downloadZip = async (variant: ExportVariant) => {
     if (pages.length === 0) return;
     setExportBusy(true);
     try {
       const entries: { name: string; blob: Blob }[] = [];
       for (const p of pages) {
-        const blob = await capturePngBlob(p);
+        const blob = await capturePngBlob(p, variant);
         entries.push({
           name: `${sanitizeFileName(formatReference(p.ref))}.png`,
           blob,
         });
       }
-      await zipBlobs(entries, "verse_cards.zip");
+      await zipBlobs(
+        entries,
+        datedZipFileName(variant === "live" ? "live" : "resolume"),
+      );
     } finally {
       setExportPage(null);
+      setExportVariant("live");
       setExportBusy(false);
     }
   };
@@ -385,14 +422,20 @@ export default function App() {
     [],
   );
 
-  const updateFontSizesForSelected = useCallback(
-    (patch: PageTypographySizeOverrides) => {
+  const updatePageTypographyForSelected = useCallback(
+    (
+      patch: PageTypographyOverrides,
+      sizesKey: "typographySizes" | "resolumeTypographySizes",
+    ) => {
       if (!selectedId) return;
       setPages((list) =>
         list.map((p) =>
           p.id !== selectedId
             ? p
-            : { ...p, typographySizes: { ...p.typographySizes, ...patch } },
+            : {
+                ...p,
+                [sizesKey]: { ...p[sizesKey], ...patch },
+              },
         ),
       );
     },
@@ -414,6 +457,20 @@ export default function App() {
     [cardLayout.width, cardLayout.height, previewScale],
   );
 
+  const previewScaleResolume = useMemo(
+    () =>
+      Math.min(0.5, Math.min(880, resolumeLayout.width / 2) / resolumeLayout.width),
+    [resolumeLayout.width],
+  );
+
+  const previewScaledSizeResolume = useMemo(
+    () => ({
+      w: Math.max(1, Math.round(resolumeLayout.width * previewScaleResolume)),
+      h: Math.max(1, Math.round(resolumeLayout.height * previewScaleResolume)),
+    }),
+    [resolumeLayout.width, resolumeLayout.height, previewScaleResolume],
+  );
+
   useEffect(() => {
     if (!selectedId) return;
     document
@@ -421,28 +478,77 @@ export default function App() {
       ?.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
   }, [selectedId]);
 
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSidebarOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sidebarOpen]);
+
   const cardBackgroundUrl =
     bgDataUrl && bgDataUrl.trim().length > 0 ? bgDataUrl : defaultPublicCardBgHref;
 
-  const selectedFontTypography = useMemo(
+  const selectedLiveTypography = useMemo(
+    () =>
+      selected ? mergePageTypography(typography, selected) : typography,
+    [typography, selected],
+  );
+
+  const selectedResolumeTypography = useMemo(
     () =>
       selected
-        ? mergePageTypography(typography, selected)
-        : typography,
-    [typography, selected],
+        ? mergePageTypography(resolumeTypography, selected, "resolumeTypographySizes")
+        : resolumeTypography,
+    [resolumeTypography, selected],
   );
 
   return (
     <>
       <header className="app-header">
-        <h1>Bible verse cards</h1>
+        <div className="app-header__top">
+          <button
+            type="button"
+            className="sidebar-toggle"
+            aria-label={sidebarOpen ? "Hide data panel" : "Show data panel"}
+            aria-expanded={sidebarOpen}
+            aria-controls={sidebarId}
+            onClick={() => setSidebarOpen((open) => !open)}
+          >
+            <span className="sidebar-toggle__bars" aria-hidden />
+          </button>
+          <h1>Bible verse cards</h1>
+        </div>
         <p className="sub">
-          Parallel {LABEL_EN} + {LABEL_HI}. Load SQLite and schema at the top, design the card in{" "}
+          Parallel {LABEL_EN} + {LABEL_HI}. Use the menu to load SQLite and schema, design in{" "}
           <strong>Edit card</strong>, then export PNG or ZIP.
         </p>
       </header>
 
-      <section className="panel">
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="app-sidebar-backdrop"
+          aria-label="Close data panel"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <div
+        className={
+          sidebarOpen ? "app-layout app-layout--sidebar-open" : "app-layout"
+        }
+      >
+        <aside
+          id={sidebarId}
+          className={
+            sidebarOpen ? "app-sidebar app-sidebar--open" : "app-sidebar"
+          }
+          aria-label="Data sources and schema"
+          aria-hidden={!sidebarOpen}
+        >
+      <section className="panel panel--sidebar">
         <h2>SQLite sources</h2>
         {bundledStatus === "loading" && (
           <p className="muted">Checking for bundled databases under /bibles/…</p>
@@ -502,18 +608,16 @@ export default function App() {
         {sqliteFileErr && <p className="error">{sqliteFileErr}</p>}
         {sqliteLoadNote && <p className="muted">{sqliteLoadNote}</p>}
         <p className="hint" style={{ marginTop: "0.65rem" }}>
-          Schema JSON in <strong>Background &amp; database schema</strong> (next section) is applied when
-          you click &quot;Apply schema JSON&quot; and on the next SQLite file load. Adjust table and column
-          names to match your database.
+          Schema JSON below is applied when you click &quot;Apply schema JSON&quot; and on the next
+          SQLite file load.
         </p>
       </section>
 
-      <section className="panel">
+      <section className="panel panel--sidebar">
         <h2>Background &amp; database schema</h2>
         <p className="hint" style={{ marginTop: 0 }}>
-          Canvas size, text box positions, fonts, and colors are edited in <strong>Edit card</strong>{" "}
-          below and saved to localStorage. Code defaults live in{" "}
-          <code>src/bible/types.ts</code> (<code>CARD_LAYOUT</code> + <code>reset</code>).
+          Layout and typography are in <strong>Edit card</strong> (main area). Code defaults:{" "}
+          <code>src/bible/types.ts</code>.
         </p>
         <label>
           Background image
@@ -537,17 +641,16 @@ export default function App() {
           Apply schema JSON
         </button>
       </section>
+        </aside>
 
+        <div className="app-main">
       <section className="panel">
         <h2>Edit card</h2>
         <DesignToolbar
           layout={cardLayout}
           onUpdateLayout={updateCardLayout}
           typography={typography}
-          fontTypography={selectedFontTypography}
-          fontSizesEnabled={Boolean(selected)}
           onUpdateTypography={updateTypography}
-          onUpdateFontSizes={updateFontSizesForSelected}
           onResetDesign={resetCardDesign}
         />
       </section>
@@ -620,9 +723,17 @@ export default function App() {
             type="button"
             className="btn btn--primary"
             disabled={pages.length === 0 || exportBusy}
-            onClick={() => void downloadZip()}
+            onClick={() => void downloadZip("live")}
           >
-            Download all as ZIP
+            Download Live ZIP
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={pages.length === 0 || exportBusy}
+            onClick={() => void downloadZip("resolume")}
+          >
+            Download Resolume ZIP
           </button>
         </div>
         {exportBusy && <p className="muted">Rendering…</p>}
@@ -647,11 +758,12 @@ export default function App() {
       )}
 
       {pages.length > 0 && (
+        <>
         <section className="panel">
-          <h2>Card preview</h2>
+          <h2>Card preview - Live</h2>
           <p className="muted" style={{ marginTop: 0, marginBottom: "0.5rem" }}>
-            All queued verses are shown side by side — scroll horizontally to see each card. Click a
-            card to select it for highlights and PNG export.
+            Click a card to select it for highlights and Live PNG export. Font sizes and colors
+            below apply only to the selected card in this preview.
           </p>
 
           <div className="preview-cards-strip">
@@ -710,6 +822,16 @@ export default function App() {
               </div>
             ))}
           </div>
+
+          <CardPreviewTypographyControls
+            previewLabel="Live"
+            typography={selectedLiveTypography}
+            enabled={Boolean(selected)}
+            onUpdate={(patch) =>
+              updatePageTypographyForSelected(patch, "typographySizes")
+            }
+          />
+
           <p className="muted" style={{ marginBottom: "0.5rem" }}>
             WYSIWYG at {cardLayout.width}×{cardLayout.height}px (scaled to fit). That size is your
             current <strong>Edit card</strong> canvas (saved in this browser), which drives preview and
@@ -726,33 +848,141 @@ export default function App() {
           </p>
         </section>
 
+        <section className="panel">
+          <h2>Card preview - Resolume</h2>
+          <p className="muted" style={{ marginTop: 0, marginBottom: "0.5rem" }}>
+            Same verses as Live, with Resolume layout. Font sizes and colors below apply only to
+            the selected card here — not Live.
+          </p>
+
+          <div className="preview-cards-strip">
+            {pages.map((p) => (
+              <div key={`resolume-${p.id}`} className="preview-card-wrap">
+                <div
+                  id={`preview-card-resolume-${p.id}`}
+                  className={
+                    p.id === selectedId
+                      ? "preview-card-slot preview-card-slot--selected"
+                      : "preview-card-slot"
+                  }
+                  style={{
+                    width: previewScaledSizeResolume.w,
+                    height: previewScaledSizeResolume.h,
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  title={`Select ${formatReference(p.ref)}`}
+                  onClick={() => setSelectedId(p.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedId(p.id);
+                    }
+                  }}
+                >
+                  <div
+                    className="preview-scale-frame"
+                    style={{
+                      width: resolumeLayout.width,
+                      height: resolumeLayout.height,
+                      transform: `scale(${previewScaleResolume})`,
+                      transformOrigin: "top left",
+                    }}
+                  >
+                    <div
+                      className="preview-scale-content"
+                      style={{
+                        width: resolumeLayout.width,
+                        height: resolumeLayout.height,
+                      }}
+                    >
+                      <ResolumeVerseCard
+                        layout={resolumeLayout}
+                        typography={mergePageTypography(
+                          resolumeTypography,
+                          p,
+                          "resolumeTypographySizes",
+                        )}
+                        page={p}
+                        backgroundDataUrl={cardBackgroundUrl}
+                        versionLabelEn={LABEL_EN}
+                        versionLabelHi={LABEL_HI}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <p className="preview-card-caption">{formatReference(p.ref)}</p>
+              </div>
+            ))}
+          </div>
+
+          <CardPreviewTypographyControls
+            previewLabel="Resolume"
+            typography={selectedResolumeTypography}
+            enabled={Boolean(selected)}
+            onUpdate={(patch) =>
+              updatePageTypographyForSelected(patch, "resolumeTypographySizes")
+            }
+          />
+        </section>
+        </>
       )}
+        </div>
+      </div>
 
       {cardPage && (
-        <div className="export-hidden-host" aria-hidden>
-          <div
-            ref={exportRef}
-            className="export-card-snapshot"
-            style={{
-              width: cardLayout.width,
-              height: cardLayout.height,
-              boxSizing: "border-box",
-              overflow: "hidden",
-            }}
-          >
-            <VerseCard
-              layout={cardLayout}
-              typography={mergePageTypography(
-                typography,
-                exportPage ?? selected ?? pages[0],
-              )}
-              page={exportPage ?? selected ?? pages[0]}
-              backgroundDataUrl={cardBackgroundUrl}
-              versionLabelEn={LABEL_EN}
-              versionLabelHi={LABEL_HI}
-            />
+        <>
+          <div className="export-hidden-host" aria-hidden>
+            <div
+              ref={exportRef}
+              className="export-card-snapshot"
+              style={{
+                width: cardLayout.width,
+                height: cardLayout.height,
+                boxSizing: "border-box",
+                overflow: "hidden",
+              }}
+            >
+              <VerseCard
+                layout={cardLayout}
+                typography={mergePageTypography(
+                  typography,
+                  cardPage,
+                  "typographySizes",
+                )}
+                page={cardPage}
+                backgroundDataUrl={cardBackgroundUrl}
+                versionLabelEn={LABEL_EN}
+                versionLabelHi={LABEL_HI}
+              />
+            </div>
           </div>
-        </div>
+          <div className="export-hidden-host" aria-hidden>
+            <div
+              ref={exportResolumeRef}
+              className="export-card-snapshot"
+              style={{
+                width: resolumeLayout.width,
+                height: resolumeLayout.height,
+                boxSizing: "border-box",
+                overflow: "hidden",
+              }}
+            >
+              <ResolumeVerseCard
+                layout={resolumeLayout}
+                typography={mergePageTypography(
+                  resolumeTypography,
+                  cardPage,
+                  "resolumeTypographySizes",
+                )}
+                page={cardPage}
+                backgroundDataUrl={cardBackgroundUrl}
+                versionLabelEn={LABEL_EN}
+                versionLabelHi={LABEL_HI}
+              />
+            </div>
+          </div>
+        </>
       )}
     </>
   );
