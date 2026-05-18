@@ -1,6 +1,9 @@
 import type { LayoutSpec, Rect, TypographySpec } from "../bible/types";
 
+export type DesignToolbarMode = "live" | "resolume";
+
 type Props = {
+  mode?: DesignToolbarMode;
   layout: LayoutSpec;
   onUpdateLayout: (fn: (prev: LayoutSpec) => LayoutSpec) => void;
   typography: TypographySpec;
@@ -110,17 +113,23 @@ function RectFields({
 }
 
 export function DesignToolbar({
+  mode = "live",
   layout,
   onUpdateLayout,
   typography,
   onUpdateTypography,
   onResetDesign,
 }: Props) {
+  const isResolume = mode === "resolume";
+  const ariaLabel = isResolume
+    ? "Resolume card layout and typography"
+    : "Live card layout and typography";
+
   return (
-    <div className="design-toolbar" aria-label="Card layout and typography">
+    <div className="design-toolbar" aria-label={ariaLabel}>
       <div className="design-toolbar__row design-toolbar__row--reset">
         <button type="button" className="btn btn--ghost" onClick={onResetDesign}>
-          Reset design to defaults
+          {isResolume ? "Reset Resolume design to defaults" : "Reset Live design to defaults"}
         </button>
       </div>
 
@@ -146,14 +155,20 @@ export function DesignToolbar({
         />
       </div>
 
-      <p className="design-toolbar__section-label">Hindi title box</p>
+      <p className="design-toolbar__section-label">
+        {isResolume ? "Combined title box" : "Hindi title box"}
+      </p>
       <RectFields rectKey="titleHi" layout={layout} onUpdateLayout={onUpdateLayout} />
 
       <p className="design-toolbar__section-label">Hindi verse box</p>
       <RectFields rectKey="bodyHi" layout={layout} onUpdateLayout={onUpdateLayout} />
 
-      <p className="design-toolbar__section-label">English title box</p>
-      <RectFields rectKey="titleEn" layout={layout} onUpdateLayout={onUpdateLayout} />
+      {!isResolume && (
+        <>
+          <p className="design-toolbar__section-label">English title box</p>
+          <RectFields rectKey="titleEn" layout={layout} onUpdateLayout={onUpdateLayout} />
+        </>
+      )}
 
       <p className="design-toolbar__section-label">English verse box</p>
       <RectFields rectKey="bodyEn" layout={layout} onUpdateLayout={onUpdateLayout} />

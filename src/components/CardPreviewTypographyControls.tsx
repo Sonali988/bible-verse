@@ -1,4 +1,8 @@
-import type { PageTypographyOverrides, TypographySpec } from "../bible/types";
+import {
+  MAX_VERSE_BODY_FONT_PX,
+  type PageTypographyOverrides,
+  type TypographySpec,
+} from "../bible/types";
 
 type Props = {
   previewLabel: string;
@@ -76,7 +80,7 @@ function PxSlider({
 
 function clampVersePx(n: number, fallback: number): number {
   if (!Number.isFinite(n)) return fallback;
-  return Math.max(6, Math.min(400, Math.round(n)));
+  return Math.max(6, Math.min(MAX_VERSE_BODY_FONT_PX, Math.round(n)));
 }
 
 function normalizeHex(color: string, fallback: string): string {
@@ -125,7 +129,7 @@ export function CardPreviewTypographyControls({
           label="Hindi verse (px)"
           value={typography.bodyFontPxHi}
           min={6}
-          max={400}
+          max={MAX_VERSE_BODY_FONT_PX}
           disabled={!enabled}
           onChange={(n) =>
             onUpdate({
@@ -137,7 +141,7 @@ export function CardPreviewTypographyControls({
           label="English verse (px)"
           value={typography.bodyFontPxEn}
           min={6}
-          max={400}
+          max={MAX_VERSE_BODY_FONT_PX}
           disabled={!enabled}
           onChange={(n) =>
             onUpdate({

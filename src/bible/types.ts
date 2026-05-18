@@ -109,12 +109,12 @@ export const CARD_LAYOUT: LayoutSpec = {
  */
 /** Title at y 70; 20px gap between title, Hindi verse, and English verse. */
 export const RESOLUME_CARD_LAYOUT: LayoutSpec = {
-  width: 1920,
+  width: 1960,
   height: 1080,
-  titleHi: { x: 70, y: 70, width: 1780, height: 115 },
-  bodyHi: { x: 90, y: 205, width: 1740, height: 380 },
+  titleHi: { x: 70, y: 70, width: 1820, height: 115 },
+  bodyHi: { x: 90, y: 205, width: 1780, height: 380 },
   titleEn: { x: 0, y: 0, width: 0, height: 0 },
-  bodyEn: { x: 90, y: 605, width: 1740, height: 380 },
+  bodyEn: { x: 90, y: 605, width: 1780, height: 380 },
 };
 
 export function cloneResolumeLayout(): LayoutSpec {
@@ -324,9 +324,12 @@ function pickLegacySize(min?: number, max?: number): number | undefined {
   return undefined;
 }
 
+/** Max verse body font size (px) for Live and Resolume previews. */
+export const MAX_VERSE_BODY_FONT_PX = 150;
+
 function clampBodyPx(n: number, d: number): number {
   if (typeof n === "number" && Number.isFinite(n)) {
-    return Math.max(6, Math.min(400, Math.round(n)));
+    return Math.max(6, Math.min(MAX_VERSE_BODY_FONT_PX, Math.round(n)));
   }
   return d;
 }

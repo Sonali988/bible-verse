@@ -99,10 +99,10 @@ export default function App() {
   const [typography, setTypography] = useState<TypographySpec>(() =>
     normalizeTypography(persisted.typography ?? null),
   );
-  const [resolumeLayout] = useState<LayoutSpec>(() =>
+  const [resolumeLayout, setResolumeLayout] = useState<LayoutSpec>(() =>
     persisted.resolumeLayout ?? cloneResolumeLayout(),
   );
-  const [resolumeTypography] = useState<TypographySpec>(() =>
+  const [resolumeTypography, setResolumeTypography] = useState<TypographySpec>(() =>
     normalizeTypography(persisted.resolumeTypography ?? defaultResolumeTypography()),
   );
   const [schemaEnJson, setSchemaEnJson] = useState(() =>
@@ -268,9 +268,15 @@ export default function App() {
     setCardLayout(cloneLayout(CARD_LAYOUT));
     setTypography(normalizeTypography(defaultTypography()));
     setPages((ps) =>
-      ps.map(({ typographySizes: _ts, resolumeTypographySizes: _rs, ...rest }) => ({
-        ...rest,
-      })),
+      ps.map(({ typographySizes: _ts, ...rest }) => ({ ...rest })),
+    );
+  };
+
+  const resetResolumeDesign = () => {
+    setResolumeLayout(cloneResolumeLayout());
+    setResolumeTypography(normalizeTypography(defaultResolumeTypography()));
+    setPages((ps) =>
+      ps.map(({ resolumeTypographySizes: _rs, ...rest }) => ({ ...rest })),
     );
   };
 
@@ -422,6 +428,20 @@ export default function App() {
     [],
   );
 
+  const updateResolumeLayout = useCallback(
+    (fn: (prev: LayoutSpec) => LayoutSpec) => {
+      setResolumeLayout((prev) => fn(prev));
+    },
+    [],
+  );
+
+  const updateResolumeTypography = useCallback(
+    (fn: (prev: TypographySpec) => TypographySpec) => {
+      setResolumeTypography((prev) => normalizeTypography(fn(prev)));
+    },
+    [],
+  );
+
   const updatePageTypographyForSelected = useCallback(
     (
       patch: PageTypographyOverrides,
@@ -521,8 +541,8 @@ export default function App() {
           <h1>Bible verse cards</h1>
         </div>
         <p className="sub">
-          Parallel {LABEL_EN} + {LABEL_HI}. Use the menu to load SQLite and schema, design in{" "}
-          <strong>Edit card</strong>, then export PNG or ZIP.
+          Parallel {LABEL_EN} + {LABEL_HI}. Use the menu to load SQLite and schema, design Live and
+          Resolume cards separately, then export PNG or ZIP.
         </p>
       </header>
 
@@ -616,7 +636,8 @@ export default function App() {
       <section className="panel panel--sidebar">
         <h2>Background &amp; database schema</h2>
         <p className="hint" style={{ marginTop: 0 }}>
-          Layout and typography are in <strong>Edit card</strong> (main area). Code defaults:{" "}
+          Layout and typography are in <strong>Edit card — Live</strong> and{" "}
+          <strong>Edit card — Resolume</strong>. Code defaults:{" "}
           <code>src/bible/types.ts</code>.
         </p>
         <label>
@@ -645,13 +666,34 @@ export default function App() {
 
         <div className="app-main">
       <section className="panel">
-        <h2>Edit card</h2>
+        <h2>Edit card — Live</h2>
+        <p className="hint" style={{ marginTop: 0 }}>
+          Canvas, text boxes, and fonts for <strong>Card preview - Live</strong> and Live export
+          only.
+        </p>
         <DesignToolbar
+          mode="live"
           layout={cardLayout}
           onUpdateLayout={updateCardLayout}
           typography={typography}
           onUpdateTypography={updateTypography}
           onResetDesign={resetCardDesign}
+        />
+      </section>
+
+      <section className="panel">
+        <h2>Edit card — Resolume</h2>
+        <p className="hint" style={{ marginTop: 0 }}>
+          Canvas, combined title, verse boxes, and fonts for{" "}
+          <strong>Card preview - Resolume</strong> and Resolume export only — separate from Live.
+        </p>
+        <DesignToolbar
+          mode="resolume"
+          layout={resolumeLayout}
+          onUpdateLayout={updateResolumeLayout}
+          typography={resolumeTypography}
+          onUpdateTypography={updateResolumeTypography}
+          onResetDesign={resetResolumeDesign}
         />
       </section>
 
@@ -834,15 +876,15 @@ export default function App() {
 
           <p className="muted" style={{ marginBottom: "0.5rem" }}>
             WYSIWYG at {cardLayout.width}×{cardLayout.height}px (scaled to fit). That size is your
-            current <strong>Edit card</strong> canvas (saved in this browser), which drives preview and
-            PNG export.
+            current <strong>Edit card — Live</strong> canvas (saved in this browser), which drives
+            this preview and Live PNG export.
             {(cardLayout.width !== CARD_LAYOUT.width ||
               cardLayout.height !== CARD_LAYOUT.height) && (
                 <>
                   {" "}
                   Code defaults are {CARD_LAYOUT.width}×{CARD_LAYOUT.height}px for a full-HD
-                  background; use <strong>Reset design to defaults</strong> in Edit card if you want
-                  that canvas again.
+                  background; use <strong>Reset Live design to defaults</strong> if you want that
+                  canvas again.
                 </>
               )}
           </p>
@@ -851,8 +893,8 @@ export default function App() {
         <section className="panel">
           <h2>Card preview - Resolume</h2>
           <p className="muted" style={{ marginTop: 0, marginBottom: "0.5rem" }}>
-            Same verses as Live, with Resolume layout. Font sizes and colors below apply only to
-            the selected card here — not Live.
+            Same verses as Live. Font sizes and colors below apply only to the selected card in this
+            preview.
           </p>
 
           <div className="preview-cards-strip">
