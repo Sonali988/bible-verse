@@ -27,6 +27,7 @@ import { VerseCard } from "./components/VerseCard";
 import { ResolumeVerseCard } from "./components/ResolumeVerseCard";
 import { DesignToolbar } from "./components/DesignToolbar";
 import { CardPreviewTypographyControls } from "./components/CardPreviewTypographyControls";
+import { CollapsiblePanel } from "./components/CollapsiblePanel";
 import { renderNodeToPng } from "./export/renderPng";
 import { savePng, zipBlobs } from "./export/downloadZip";
 import { formatReference } from "./lib/referenceParser";
@@ -67,6 +68,10 @@ function datedZipFileName(suffix: string): string {
 }
 
 type ExportVariant = "live" | "resolume";
+
+function exportPngFileName(ref: VerseRef, variant: ExportVariant): string {
+  return `${sanitizeFileName(formatReference(ref))}-${variant}.png`;
+}
 
 async function nextFrames(n: number): Promise<void> {
   for (let i = 0; i < n; i++) {
@@ -127,6 +132,7 @@ export default function App() {
   const [exportPage, setExportPage] = useState<VersePage | null>(null);
   const [exportVariant, setExportVariant] = useState<ExportVariant>("live");
   const [exportBusy, setExportBusy] = useState(false);
+  const [exportPageIds, setExportPageIds] = useState<Set<string>>(() => new Set());
   const [parseErr, setParseErr] = useState<string | null>(null);
   const [bundledStatus, setBundledStatus] = useState<
     "idle" | "loading" | "loaded" | "missing"
@@ -134,6 +140,7 @@ export default function App() {
   const [sqliteFileErr, setSqliteFileErr] = useState<string | null>(null);
   const [sqliteLoadNote, setSqliteLoadNote] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [workflowVariant, setWorkflowVariant] = useState<ExportVariant>("live");
   const exportRef = useRef<HTMLDivElement>(null);
   const exportResolumeRef = useRef<HTMLDivElement>(null);
   const sidebarId = "app-sidebar-panel";
@@ -171,6 +178,23 @@ export default function App() {
       setSelectedId(pages[0]?.id ?? null);
     }
   }, [pages, selectedId]);
+
+  /** PNG/ZIP export selection follows the card selected in queue or preview. */
+  useEffect(() => {
+    if (selectedId) {
+      setExportPageIds(new Set([selectedId]));
+    } else {
+      setExportPageIds(new Set());
+    }
+  }, [selectedId]);
+
+  useEffect(() => {
+    const valid = new Set(pages.map((p) => p.id));
+    setExportPageIds((prev) => {
+      const next = new Set([...prev].filter((id) => valid.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [pages]);
 
   /** Auto-load SQLite from `public/bibles/` when both default URLs return 200. */
   useEffect(() => {
@@ -360,28 +384,50 @@ export default function App() {
     return renderNodeToPng(node, { width: w, height: h });
   };
 
-  const downloadCurrentPng = async () => {
-    if (!selected) return;
+  const pagesForExport = useMemo(
+    () => pages.filter((p) => exportPageIds.has(p.id)),
+    [pages, exportPageIds],
+  );
+
+  const toggleExportPage = (pageId: string, checked: boolean) => {
+    setExportPageIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(pageId);
+      else next.delete(pageId);
+      return next;
+    });
+  };
+
+  const downloadPng = async (variant: ExportVariant) => {
+    const list = pagesForExport;
+    if (list.length === 0) return;
     setExportBusy(true);
     try {
-      const blob = await capturePngBlob(selected, "live");
-      const name = `${sanitizeFileName(formatReference(selected.ref))}.png`;
-      savePng(blob, name);
+      for (let i = 0; i < list.length; i++) {
+        const p = list[i]!;
+        const blob = await capturePngBlob(p, variant);
+        savePng(blob, exportPngFileName(p.ref, variant));
+        if (i < list.length - 1) {
+          await new Promise<void>((r) => setTimeout(r, 150));
+        }
+      }
     } finally {
       setExportPage(null);
+      setExportVariant("live");
       setExportBusy(false);
     }
   };
 
   const downloadZip = async (variant: ExportVariant) => {
-    if (pages.length === 0) return;
+    const list = pagesForExport;
+    if (list.length === 0) return;
     setExportBusy(true);
     try {
       const entries: { name: string; blob: Blob }[] = [];
-      for (const p of pages) {
+      for (const p of list) {
         const blob = await capturePngBlob(p, variant);
         entries.push({
-          name: `${sanitizeFileName(formatReference(p.ref))}.png`,
+          name: exportPngFileName(p.ref, variant),
           blob,
         });
       }
@@ -541,9 +587,24 @@ export default function App() {
           <h1>Bible verse cards</h1>
         </div>
         <p className="sub">
-          Parallel {LABEL_EN} + {LABEL_HI}. Use the menu to load SQLite and schema, design Live and
-          Resolume cards separately, then export PNG or ZIP.
+          Parallel {LABEL_EN} + {LABEL_HI}. Open the menu for databases and background, build a
+          verse queue, then design and export Live or Resolume cards.
         </p>
+        <div className="app-header__meta">
+          <span className="chip">
+            {pages.length} {pages.length === 1 ? "card" : "cards"} in queue
+          </span>
+          {selected && (
+            <span className="chip chip--accent">{formatReference(selected.ref)}</span>
+          )}
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => setSidebarOpen(true)}
+          >
+            Data &amp; background
+          </button>
+        </div>
       </header>
 
       {sidebarOpen && (
@@ -665,37 +726,8 @@ export default function App() {
         </aside>
 
         <div className="app-main">
-      <section className="panel">
-        <h2>Edit card — Live</h2>
-        <p className="hint" style={{ marginTop: 0 }}>
-          Canvas, text boxes, and fonts for <strong>Card preview - Live</strong> and Live export
-          only.
-        </p>
-        <DesignToolbar
-          mode="live"
-          layout={cardLayout}
-          onUpdateLayout={updateCardLayout}
-          typography={typography}
-          onUpdateTypography={updateTypography}
-          onResetDesign={resetCardDesign}
-        />
-      </section>
-
-      <section className="panel">
-        <h2>Edit card — Resolume</h2>
-        <p className="hint" style={{ marginTop: 0 }}>
-          Canvas, combined title, verse boxes, and fonts for{" "}
-          <strong>Card preview - Resolume</strong> and Resolume export only — separate from Live.
-        </p>
-        <DesignToolbar
-          mode="resolume"
-          layout={resolumeLayout}
-          onUpdateLayout={updateResolumeLayout}
-          typography={resolumeTypography}
-          onUpdateTypography={updateResolumeTypography}
-          onResetDesign={resetResolumeDesign}
-        />
-      </section>
+      <div className="workflow-block">
+        <p className="workflow-heading">1 · Build your queue</p>
 
       <ReferencePicker
         providerEn={providerEn}
@@ -704,8 +736,8 @@ export default function App() {
       />
 
       {draft && (
-        <section className="panel">
-          <h2>Preview</h2>
+        <section className="panel panel--draft">
+          <h2>Verse draft</h2>
           <div className="preview-grid preview-box">
             <div>
               <strong>{LABEL_HI}</strong>
@@ -724,8 +756,12 @@ export default function App() {
         </section>
       )}
 
-      <section className="panel">
-        <h2>Page queue</h2>
+      <CollapsiblePanel
+        title="Page queue"
+        subtitle="Select a card for highlights and per-card styling"
+        badge={pages.length || undefined}
+        defaultOpen
+      >
         {pages.length === 0 ? (
           <p className="muted">No pages yet. Fetch a verse and add it.</p>
         ) : (
@@ -752,38 +788,91 @@ export default function App() {
             ))}
           </ul>
         )}
-        <div className="btn-row" style={{ marginTop: "0.65rem" }}>
+        {pages.length > 0 && (
+          <fieldset className="export-page-picker">
+            <legend className="export-page-picker__legend">
+              Pages to export
+              <span className="export-page-picker__tools">
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  disabled={exportBusy}
+                  onClick={() => setExportPageIds(new Set(pages.map((p) => p.id)))}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  disabled={exportBusy || !selectedId}
+                  onClick={() =>
+                    setExportPageIds(selectedId ? new Set([selectedId]) : new Set())
+                  }
+                >
+                  Selected only
+                </button>
+              </span>
+            </legend>
+            <ul className="export-page-picker__list">
+              {pages.map((p) => (
+                <li key={p.id}>
+                  <label className="export-page-picker__item">
+                    <input
+                      type="checkbox"
+                      checked={exportPageIds.has(p.id)}
+                      disabled={exportBusy}
+                      onChange={(e) => toggleExportPage(p.id, e.target.checked)}
+                    />
+                    <span>{formatReference(p.ref)}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </fieldset>
+        )}
+        <div className="export-actions">
           <button
             type="button"
             className="btn"
-            disabled={!selected || exportBusy}
-            onClick={() => void downloadCurrentPng()}
+            disabled={pagesForExport.length === 0 || exportBusy}
+            onClick={() => void downloadPng("live")}
           >
-            Download selected PNG
+            Live PNG
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={pagesForExport.length === 0 || exportBusy}
+            onClick={() => void downloadPng("resolume")}
+          >
+            Resolume PNG
           </button>
           <button
             type="button"
             className="btn btn--primary"
-            disabled={pages.length === 0 || exportBusy}
+            disabled={pagesForExport.length === 0 || exportBusy}
             onClick={() => void downloadZip("live")}
           >
-            Download Live ZIP
+            Live ZIP
           </button>
           <button
             type="button"
-            className="btn"
-            disabled={pages.length === 0 || exportBusy}
+            className="btn btn--primary"
+            disabled={pagesForExport.length === 0 || exportBusy}
             onClick={() => void downloadZip("resolume")}
           >
-            Download Resolume ZIP
+            Resolume ZIP
           </button>
         </div>
         {exportBusy && <p className="muted">Rendering…</p>}
-      </section>
+      </CollapsiblePanel>
 
       {selected && (
-        <section className="panel">
-          <h2>Highlights — {formatReference(selected.ref)}</h2>
+        <CollapsiblePanel
+          title={`Highlights — ${formatReference(selected.ref)}`}
+          subtitle="Select text in each language to highlight"
+          defaultOpen
+        >
           <HighlightEditor
             label={LABEL_HI}
             text={selected.textHi}
@@ -796,18 +885,87 @@ export default function App() {
             highlights={selected.highlightsEn}
             onChange={(h) => updateSelectedHighlights("en", h)}
           />
-        </section>
+        </CollapsiblePanel>
       )}
+      </div>
 
-      {pages.length > 0 && (
-        <>
-        <section className="panel">
-          <h2>Card preview - Live</h2>
-          <p className="muted" style={{ marginTop: 0, marginBottom: "0.5rem" }}>
-            Click a card to select it for highlights and Live PNG export. Font sizes and colors
-            below apply only to the selected card in this preview.
-          </p>
+      <div className="workflow-block">
+        <p className="workflow-heading">2 · Design &amp; preview</p>
 
+        <p className="hint workflow-tabs-hint">
+          Tabs switch <strong>Edit card</strong> options only. Both previews stay visible below.
+        </p>
+
+        <div className="variant-tabs" role="tablist" aria-label="Edit card variant">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={workflowVariant === "live"}
+            className={
+              workflowVariant === "live"
+                ? "variant-tab variant-tab--active"
+                : "variant-tab"
+            }
+            onClick={() => setWorkflowVariant("live")}
+          >
+            Edit — Live
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={workflowVariant === "resolume"}
+            className={
+              workflowVariant === "resolume"
+                ? "variant-tab variant-tab--active"
+                : "variant-tab"
+            }
+            onClick={() => setWorkflowVariant("resolume")}
+          >
+            Edit — Resolume
+          </button>
+        </div>
+
+        {workflowVariant === "live" && (
+          <CollapsiblePanel
+            title="Edit card — Live"
+            subtitle="Canvas, boxes, and fonts (Live only)"
+            defaultOpen
+          >
+            <DesignToolbar
+              mode="live"
+              layout={cardLayout}
+              onUpdateLayout={updateCardLayout}
+              typography={typography}
+              onUpdateTypography={updateTypography}
+              onResetDesign={resetCardDesign}
+            />
+          </CollapsiblePanel>
+        )}
+
+        {workflowVariant === "resolume" && (
+          <CollapsiblePanel
+            title="Edit card — Resolume"
+            subtitle="Canvas, combined title, verse boxes, and fonts"
+            defaultOpen
+          >
+            <DesignToolbar
+              mode="resolume"
+              layout={resolumeLayout}
+              onUpdateLayout={updateResolumeLayout}
+              typography={resolumeTypography}
+              onUpdateTypography={updateResolumeTypography}
+              onResetDesign={resetResolumeDesign}
+            />
+          </CollapsiblePanel>
+        )}
+
+        {pages.length > 0 ? (
+          <div className="preview-dual-stack">
+            <CollapsiblePanel
+              title="Card preview — Live"
+              subtitle="Click a card to select · Live typography below"
+              defaultOpen
+            >
           <div className="preview-cards-strip">
             {pages.map((p) => (
               <div key={p.id} className="preview-card-wrap">
@@ -875,28 +1033,25 @@ export default function App() {
           />
 
           <p className="muted" style={{ marginBottom: "0.5rem" }}>
-            WYSIWYG at {cardLayout.width}×{cardLayout.height}px (scaled to fit). That size is your
-            current <strong>Edit card — Live</strong> canvas (saved in this browser), which drives
-            this preview and Live PNG export.
+            Cards here are shown smaller so they fit on screen. Downloaded Live PNGs use the full{" "}
+            {cardLayout.width}×{cardLayout.height} px layout from <strong>Edit card — Live</strong>{" "}
+            (saved in this browser).
             {(cardLayout.width !== CARD_LAYOUT.width ||
               cardLayout.height !== CARD_LAYOUT.height) && (
                 <>
                   {" "}
-                  Code defaults are {CARD_LAYOUT.width}×{CARD_LAYOUT.height}px for a full-HD
-                  background; use <strong>Reset Live design to defaults</strong> if you want that
-                  canvas again.
+                  The built-in default is {CARD_LAYOUT.width}×{CARD_LAYOUT.height} px — choose{" "}
+                  <strong>Reset Live design to defaults</strong> in Edit — Live to restore it.
                 </>
               )}
           </p>
-        </section>
+              </CollapsiblePanel>
 
-        <section className="panel">
-          <h2>Card preview - Resolume</h2>
-          <p className="muted" style={{ marginTop: 0, marginBottom: "0.5rem" }}>
-            Same verses as Live. Font sizes and colors below apply only to the selected card in this
-            preview.
-          </p>
-
+            <CollapsiblePanel
+              title="Card preview — Resolume"
+              subtitle="Click a card to select · Resolume typography below"
+              defaultOpen
+            >
           <div className="preview-cards-strip">
             {pages.map((p) => (
               <div key={`resolume-${p.id}`} className="preview-card-wrap">
@@ -966,9 +1121,12 @@ export default function App() {
               updatePageTypographyForSelected(patch, "resolumeTypographySizes")
             }
           />
-        </section>
-        </>
-      )}
+              </CollapsiblePanel>
+          </div>
+        ) : (
+          <p className="muted">Add verses to the queue to preview cards.</p>
+        )}
+      </div>
         </div>
       </div>
 

@@ -91,16 +91,16 @@ export function mergePageTypography(
 
 /**
  * Default card canvas and text regions (reset + initial load).
- * **1920×1080** to match a full-HD background. Hindi block first (title from **130px** top), then English below.
- * Each title/body region is up to **880×400** (see `VerseCard` max caps); right side stays clear for overlays.
+ * **1920×1080** to match a full-HD background. Hindi block first (title from **220px** top), then English below.
+ * Left column **660px** wide at **x 30**; gaps between regions match the prior 130px-top layout (+90px shift).
  */
 export const CARD_LAYOUT: LayoutSpec = {
   width: 1920,
   height: 1080,
-  titleHi: { x: 50, y: 130, width: 880, height: 56 },
-  bodyHi: { x: 50, y: 210, width: 880, height: 400 },
-  titleEn: { x: 50, y: 634, width: 880, height: 56 },
-  bodyEn: { x: 50, y: 706, width: 880, height: 374 },
+  titleHi: { x: 30, y: 220, width: 660, height: 56 },
+  bodyHi: { x: 30, y: 300, width: 660, height: 350 },
+  titleEn: { x: 30, y: 672, width: 660, height: 56 },
+  bodyEn: { x: 30, y: 742, width: 660, height: 338 },
 };
 
 /**
