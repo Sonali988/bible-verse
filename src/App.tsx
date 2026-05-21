@@ -22,6 +22,7 @@ import {
   type VerseRef,
 } from "./bible/types";
 import { ReferencePicker } from "./components/ReferencePicker";
+import { ExportModal } from "./components/ExportModal";
 import { PageQueuePanel } from "./components/PageQueuePanel";
 import { VerseCard } from "./components/VerseCard";
 import { ResolumeVerseCard } from "./components/ResolumeVerseCard";
@@ -118,7 +119,7 @@ export default function App() {
   const [exportPage, setExportPage] = useState<VersePage | null>(null);
   const [exportVariant, setExportVariant] = useState<ExportVariant>("live");
   const [exportBusy, setExportBusy] = useState(false);
-  const [exportPageIds, setExportPageIds] = useState<Set<string>>(() => new Set());
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [parseErr, setParseErr] = useState<string | null>(null);
   const [bundledStatus, setBundledStatus] = useState<
     "idle" | "loading" | "loaded" | "missing"
@@ -164,23 +165,6 @@ export default function App() {
       setSelectedId(pages[0]?.id ?? null);
     }
   }, [pages, selectedId]);
-
-  /** PNG/ZIP export selection follows the card selected in queue or preview. */
-  useEffect(() => {
-    if (selectedId) {
-      setExportPageIds(new Set([selectedId]));
-    } else {
-      setExportPageIds(new Set());
-    }
-  }, [selectedId]);
-
-  useEffect(() => {
-    const valid = new Set(pages.map((p) => p.id));
-    setExportPageIds((prev) => {
-      const next = new Set([...prev].filter((id) => valid.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
-  }, [pages]);
 
   /** Auto-load SQLite from `public/bibles/` when both default URLs return 200. */
   useEffect(() => {
@@ -370,22 +354,11 @@ export default function App() {
     return renderNodeToPng(node, { width: w, height: h });
   };
 
-  const pagesForExport = useMemo(
-    () => pages.filter((p) => exportPageIds.has(p.id)),
-    [pages, exportPageIds],
-  );
+  const pagesByIds = (ids: string[]) =>
+    pages.filter((p) => ids.includes(p.id));
 
-  const toggleExportPage = (pageId: string, checked: boolean) => {
-    setExportPageIds((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(pageId);
-      else next.delete(pageId);
-      return next;
-    });
-  };
-
-  const downloadPng = async (variant: ExportVariant) => {
-    const list = pagesForExport;
+  const downloadPng = async (variant: ExportVariant, pageIds: string[]) => {
+    const list = pagesByIds(pageIds);
     if (list.length === 0) return;
     setExportBusy(true);
     try {
@@ -404,8 +377,8 @@ export default function App() {
     }
   };
 
-  const downloadZip = async (variant: ExportVariant) => {
-    const list = pagesForExport;
+  const downloadZip = async (variant: ExportVariant, pageIds: string[]) => {
+    const list = pagesByIds(pageIds);
     if (list.length === 0) return;
     setExportBusy(true);
     try {
@@ -739,19 +712,28 @@ export default function App() {
       />
 
       {draft && (
-        <section className="panel panel--draft">
-          <h2>Verse draft</h2>
-          <div className="preview-grid preview-box">
+        <section className="panel verse-draft" aria-label="Verse draft (read-only)">
+          <div className="verse-draft__head">
             <div>
-              <strong>{LABEL_HI}</strong>
-              <p>{draft.textHi}</p>
+              <h2 className="verse-draft__title">Verse draft</h2>
+              <p className="hint verse-draft__hint">
+                Review fetched text before adding to the queue. This section is not
+                editable.
+              </p>
             </div>
-            <div>
-              <strong>{LABEL_EN}</strong>
-              <p>{draft.textEn}</p>
+            <span className="verse-draft__badge">Read-only</span>
+          </div>
+          <div className="verse-draft__body">
+            <div className="verse-draft__col">
+              <span className="verse-draft__label">{LABEL_HI}</span>
+              <p className="verse-draft__text">{draft.textHi}</p>
+            </div>
+            <div className="verse-draft__col">
+              <span className="verse-draft__label">{LABEL_EN}</span>
+              <p className="verse-draft__text">{draft.textEn}</p>
             </div>
           </div>
-          <div className="btn-row" style={{ marginTop: "0.65rem" }}>
+          <div className="verse-draft__actions">
             <button type="button" className="btn btn--primary" onClick={addPage}>
               Add to page queue
             </button>
@@ -768,18 +750,8 @@ export default function App() {
           setPages((xs) => xs.filter((x) => x.id !== id));
           if (selectedId === id) setSelectedId(null);
         }}
-        exportPageIds={exportPageIds}
         exportBusy={exportBusy}
-        pagesForExportCount={pagesForExport.length}
-        onToggleExportPage={toggleExportPage}
-        onExportSelectAll={() =>
-          setExportPageIds(new Set(pages.map((p) => p.id)))
-        }
-        onExportSelectSelectedOnly={() =>
-          setExportPageIds(selectedId ? new Set([selectedId]) : new Set())
-        }
-        onDownloadPng={downloadPng}
-        onDownloadZip={downloadZip}
+        onOpenExport={() => setExportModalOpen(true)}
         onUpdateHighlights={updateSelectedHighlights}
         labelEn={LABEL_EN}
         labelHi={LABEL_HI}
@@ -1046,6 +1018,16 @@ export default function App() {
           )}
         </div>
       </div>
+
+      <ExportModal
+        open={exportModalOpen}
+        pages={pages}
+        selectedId={selectedId}
+        exportBusy={exportBusy}
+        onClose={() => setExportModalOpen(false)}
+        onDownloadPng={downloadPng}
+        onDownloadZip={downloadZip}
+      />
 
       {cardPage && (
         <>

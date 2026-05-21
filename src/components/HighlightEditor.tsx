@@ -19,7 +19,7 @@ export function HighlightEditor({ label, text, highlights, onChange }: Props) {
   const clear = () => onChange([]);
 
   return (
-    <div className="highlight-editor">
+    <div className="highlight-editor highlight-editor--edit">
       <div className="highlight-editor__head">
         <strong>{label}</strong>
         <button type="button" className="btn btn--ghost" onClick={clear}>
