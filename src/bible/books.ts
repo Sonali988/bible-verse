@@ -68,6 +68,34 @@ export const STANDARD_BOOKS: { id: string; name: string }[] = [
   { id: "66", name: "Revelation" },
 ];
 
+/** Matthew (`40`) is the first New Testament book in the standard 66-book order. */
+export const FIRST_NEW_TESTAMENT_BOOK_ID = 40;
+
+export type BookInfo = { id: string; name: string };
+
+export function isNewTestamentBookId(bookId: string): boolean {
+  const n = Number(bookId);
+  return Number.isFinite(n) && n >= FIRST_NEW_TESTAMENT_BOOK_ID;
+}
+
+const byNumericId = (a: BookInfo, b: BookInfo) => Number(a.id) - Number(b.id);
+
+/** Splits provider books into Old (Genesis–Malachi) and New (Matthew–Revelation). */
+export function partitionBooksByTestament(books: BookInfo[]): {
+  oldTestament: BookInfo[];
+  newTestament: BookInfo[];
+} {
+  const oldTestament: BookInfo[] = [];
+  const newTestament: BookInfo[] = [];
+  for (const b of books) {
+    if (isNewTestamentBookId(b.id)) newTestament.push(b);
+    else oldTestament.push(b);
+  }
+  oldTestament.sort(byNumericId);
+  newTestament.sort(byNumericId);
+  return { oldTestament, newTestament };
+}
+
 export function bookNameById(bookId: string): string {
   return STANDARD_BOOKS.find((b) => b.id === bookId)?.name ?? `Book ${bookId}`;
 }

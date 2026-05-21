@@ -22,7 +22,7 @@ import {
   type VerseRef,
 } from "./bible/types";
 import { ReferencePicker } from "./components/ReferencePicker";
-import { HighlightEditor } from "./components/HighlightEditor";
+import { PageQueuePanel } from "./components/PageQueuePanel";
 import { VerseCard } from "./components/VerseCard";
 import { ResolumeVerseCard } from "./components/ResolumeVerseCard";
 import { DesignToolbar } from "./components/DesignToolbar";
@@ -40,20 +40,6 @@ import {
 
 const LABEL_EN = "NKJV";
 const LABEL_HI = "HINOVBSI";
-
-/**
- * Absolute URL to `public/bg.png` so the file you drop in `public/` is what loads (not a bundled copy).
- * Uses `import.meta.env.BASE_URL` so subpath deploys work.
- */
-function defaultCardBackgroundHref(): string {
-  const base = import.meta.env.BASE_URL || "/";
-  const pathBase = base.startsWith("/") ? base : `/${base}`;
-  const withSlash = pathBase.endsWith("/") ? pathBase : `${pathBase}/`;
-  if (typeof window === "undefined") {
-    return `${withSlash}bg.png`.replace(/([^:]\/)\/+/g, "$1");
-  }
-  return new URL("bg.png", `${window.location.origin}${withSlash}`).href;
-}
 
 function sanitizeFileName(s: string): string {
   return s.replace(/[^\w\u0900-\u0fff-]+/g, "_").replace(/_+/g, "_").slice(0, 120);
@@ -140,6 +126,7 @@ export default function App() {
   const [sqliteFileErr, setSqliteFileErr] = useState<string | null>(null);
   const [sqliteLoadNote, setSqliteLoadNote] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [editRailOpen, setEditRailOpen] = useState(false);
   const [workflowVariant, setWorkflowVariant] = useState<ExportVariant>("live");
   const exportRef = useRef<HTMLDivElement>(null);
   const exportResolumeRef = useRef<HTMLDivElement>(null);
@@ -147,7 +134,6 @@ export default function App() {
 
   const selected = pages.find((p) => p.id === selectedId) ?? null;
 
-  const defaultPublicCardBgHref = useMemo(() => defaultCardBackgroundHref(), []);
 
   useEffect(() => {
     if (!useSample) return;
@@ -554,7 +540,7 @@ export default function App() {
   }, [sidebarOpen]);
 
   const cardBackgroundUrl =
-    bgDataUrl && bgDataUrl.trim().length > 0 ? bgDataUrl : defaultPublicCardBgHref;
+    bgDataUrl && bgDataUrl.trim().length > 0 ? bgDataUrl : null;
 
   const selectedLiveTypography = useMemo(
     () =>
@@ -588,7 +574,7 @@ export default function App() {
         </div>
         <p className="sub">
           Parallel {LABEL_EN} + {LABEL_HI}. Open the menu for databases and background, build a
-          verse queue, then design and export Live or Resolume cards.
+          queue, then use <strong>Edit card layout</strong> when you need the design panel.
         </p>
         <div className="app-header__meta">
           <span className="chip">
@@ -603,6 +589,16 @@ export default function App() {
             onClick={() => setSidebarOpen(true)}
           >
             Data &amp; background
+          </button>
+          <button
+            type="button"
+            className={
+              editRailOpen ? "btn btn--sm" : "btn btn--ghost btn--sm"
+            }
+            aria-expanded={editRailOpen}
+            onClick={() => setEditRailOpen((open) => !open)}
+          >
+            {editRailOpen ? "Hide edit panel" : "Edit card layout"}
           </button>
         </div>
       </header>
@@ -697,18 +693,18 @@ export default function App() {
       <section className="panel panel--sidebar">
         <h2>Background &amp; database schema</h2>
         <p className="hint" style={{ marginTop: 0 }}>
-          Layout and typography are in <strong>Edit card — Live</strong> and{" "}
-          <strong>Edit card — Resolume</strong>. Code defaults:{" "}
-          <code>src/bible/types.ts</code>.
+          Card layout defaults live in <code>src/bible/types.ts</code>. Use the{" "}
+          <strong>Edit card</strong> panel on the right for Live and Resolume.
         </p>
         <label>
           Background image
           <input type="file" accept="image/*" onChange={(e) => onBgFile(e.target.files?.[0] ?? null)} />
         </label>
         <p className="hint" style={{ marginTop: "0.35rem" }}>
-          With no upload, the card loads <code>public/bg.png</code> from the dev server. Replace that
-          file on disk, then refresh (or restart dev) if you do not see the update. Uploads must be a
-          normal browser image type (PNG, JPEG, WebP); HEIC often will not display.
+          With no upload, cards use the default background color (
+          <code>#2a6e52</code> in <code>types.ts</code>). You can also replace{" "}
+          <code>public/bg.png</code> on disk if you prefer a raster default. Uploads must be a normal
+          browser image type (PNG, JPEG, WebP); HEIC often will not display.
         </p>
         <label style={{ marginTop: "0.65rem" }}>
           English DB schema JSON
@@ -725,7 +721,14 @@ export default function App() {
       </section>
         </aside>
 
-        <div className="app-main">
+        <div
+          className={
+            editRailOpen
+              ? "app-content app-content--edit-open"
+              : "app-content"
+          }
+        >
+          <div className="app-content__main">
       <div className="workflow-block">
         <p className="workflow-heading">1 · Build your queue</p>
 
@@ -756,208 +759,49 @@ export default function App() {
         </section>
       )}
 
-      <CollapsiblePanel
-        title="Page queue"
-        subtitle="Select a card for highlights and per-card styling"
-        badge={pages.length || undefined}
-        defaultOpen
-      >
-        {pages.length === 0 ? (
-          <p className="muted">No pages yet. Fetch a verse and add it.</p>
-        ) : (
-          <ul className="queue">
-            {pages.map((p) => (
-              <li
-                key={p.id}
-                className={p.id === selectedId ? "selected" : ""}
-                onClick={() => setSelectedId(p.id)}
-              >
-                <span>{formatReference(p.ref)}</span>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPages((xs) => xs.filter((x) => x.id !== p.id));
-                    if (selectedId === p.id) setSelectedId(null);
-                  }}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {pages.length > 0 && (
-          <fieldset className="export-page-picker">
-            <legend className="export-page-picker__legend">
-              Pages to export
-              <span className="export-page-picker__tools">
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  disabled={exportBusy}
-                  onClick={() => setExportPageIds(new Set(pages.map((p) => p.id)))}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  disabled={exportBusy || !selectedId}
-                  onClick={() =>
-                    setExportPageIds(selectedId ? new Set([selectedId]) : new Set())
-                  }
-                >
-                  Selected only
-                </button>
-              </span>
-            </legend>
-            <ul className="export-page-picker__list">
-              {pages.map((p) => (
-                <li key={p.id}>
-                  <label className="export-page-picker__item">
-                    <input
-                      type="checkbox"
-                      checked={exportPageIds.has(p.id)}
-                      disabled={exportBusy}
-                      onChange={(e) => toggleExportPage(p.id, e.target.checked)}
-                    />
-                    <span>{formatReference(p.ref)}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </fieldset>
-        )}
-        <div className="export-actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={pagesForExport.length === 0 || exportBusy}
-            onClick={() => void downloadPng("live")}
-          >
-            Live PNG
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={pagesForExport.length === 0 || exportBusy}
-            onClick={() => void downloadPng("resolume")}
-          >
-            Resolume PNG
-          </button>
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={pagesForExport.length === 0 || exportBusy}
-            onClick={() => void downloadZip("live")}
-          >
-            Live ZIP
-          </button>
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={pagesForExport.length === 0 || exportBusy}
-            onClick={() => void downloadZip("resolume")}
-          >
-            Resolume ZIP
-          </button>
-        </div>
-        {exportBusy && <p className="muted">Rendering…</p>}
-      </CollapsiblePanel>
-
-      {selected && (
-        <CollapsiblePanel
-          title={`Highlights — ${formatReference(selected.ref)}`}
-          subtitle="Select text in each language to highlight"
-          defaultOpen
-        >
-          <HighlightEditor
-            label={LABEL_HI}
-            text={selected.textHi}
-            highlights={selected.highlightsHi}
-            onChange={(h) => updateSelectedHighlights("hi", h)}
-          />
-          <HighlightEditor
-            label={LABEL_EN}
-            text={selected.textEn}
-            highlights={selected.highlightsEn}
-            onChange={(h) => updateSelectedHighlights("en", h)}
-          />
-        </CollapsiblePanel>
-      )}
+      <PageQueuePanel
+        pages={pages}
+        selectedId={selectedId}
+        selected={selected}
+        onSelect={setSelectedId}
+        onRemove={(id) => {
+          setPages((xs) => xs.filter((x) => x.id !== id));
+          if (selectedId === id) setSelectedId(null);
+        }}
+        exportPageIds={exportPageIds}
+        exportBusy={exportBusy}
+        pagesForExportCount={pagesForExport.length}
+        onToggleExportPage={toggleExportPage}
+        onExportSelectAll={() =>
+          setExportPageIds(new Set(pages.map((p) => p.id)))
+        }
+        onExportSelectSelectedOnly={() =>
+          setExportPageIds(selectedId ? new Set([selectedId]) : new Set())
+        }
+        onDownloadPng={downloadPng}
+        onDownloadZip={downloadZip}
+        onUpdateHighlights={updateSelectedHighlights}
+        labelEn={LABEL_EN}
+        labelHi={LABEL_HI}
+      />
       </div>
 
       <div className="workflow-block">
-        <p className="workflow-heading">2 · Design &amp; preview</p>
+        <p className="workflow-heading">2 · Preview</p>
 
         <p className="hint workflow-tabs-hint">
-          Tabs switch <strong>Edit card</strong> options only. Both previews stay visible below.
+          {editRailOpen ? (
+            <>
+              Card layout and fonts are in the <strong>Edit card</strong> panel on the
+              right. Click a preview card to adjust per-card font sizes below each strip.
+            </>
+          ) : (
+            <>
+              Use <strong>Edit card layout</strong> in the header to open the design panel.
+              Click a preview card to adjust per-card font sizes below each strip.
+            </>
+          )}
         </p>
-
-        <div className="variant-tabs" role="tablist" aria-label="Edit card variant">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={workflowVariant === "live"}
-            className={
-              workflowVariant === "live"
-                ? "variant-tab variant-tab--active"
-                : "variant-tab"
-            }
-            onClick={() => setWorkflowVariant("live")}
-          >
-            Edit — Live
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={workflowVariant === "resolume"}
-            className={
-              workflowVariant === "resolume"
-                ? "variant-tab variant-tab--active"
-                : "variant-tab"
-            }
-            onClick={() => setWorkflowVariant("resolume")}
-          >
-            Edit — Resolume
-          </button>
-        </div>
-
-        {workflowVariant === "live" && (
-          <CollapsiblePanel
-            title="Edit card — Live"
-            subtitle="Canvas, boxes, and fonts (Live only)"
-            defaultOpen
-          >
-            <DesignToolbar
-              mode="live"
-              layout={cardLayout}
-              onUpdateLayout={updateCardLayout}
-              typography={typography}
-              onUpdateTypography={updateTypography}
-              onResetDesign={resetCardDesign}
-            />
-          </CollapsiblePanel>
-        )}
-
-        {workflowVariant === "resolume" && (
-          <CollapsiblePanel
-            title="Edit card — Resolume"
-            subtitle="Canvas, combined title, verse boxes, and fonts"
-            defaultOpen
-          >
-            <DesignToolbar
-              mode="resolume"
-              layout={resolumeLayout}
-              onUpdateLayout={updateResolumeLayout}
-              typography={resolumeTypography}
-              onUpdateTypography={updateResolumeTypography}
-              onResetDesign={resetResolumeDesign}
-            />
-          </CollapsiblePanel>
-        )}
 
         {pages.length > 0 ? (
           <div className="preview-dual-stack">
@@ -1127,6 +971,79 @@ export default function App() {
           <p className="muted">Add verses to the queue to preview cards.</p>
         )}
       </div>
+          </div>
+
+          {editRailOpen && (
+          <aside className="app-edit-rail" aria-label="Edit card design">
+            <p className="workflow-heading app-edit-rail__heading">Edit card</p>
+            <div
+              className="variant-tabs"
+              role="tablist"
+              aria-label="Edit card variant"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={workflowVariant === "live"}
+                className={
+                  workflowVariant === "live"
+                    ? "variant-tab variant-tab--active"
+                    : "variant-tab"
+                }
+                onClick={() => setWorkflowVariant("live")}
+              >
+                Live
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={workflowVariant === "resolume"}
+                className={
+                  workflowVariant === "resolume"
+                    ? "variant-tab variant-tab--active"
+                    : "variant-tab"
+                }
+                onClick={() => setWorkflowVariant("resolume")}
+              >
+                Resolume
+              </button>
+            </div>
+
+            <section className="panel app-edit-rail__panel">
+              {workflowVariant === "live" ? (
+                <>
+                  <h2 className="app-edit-rail__title">Live layout</h2>
+                  <p className="hint app-edit-rail__hint">
+                    Canvas, text boxes, and global fonts.
+                  </p>
+                  <DesignToolbar
+                    mode="live"
+                    layout={cardLayout}
+                    onUpdateLayout={updateCardLayout}
+                    typography={typography}
+                    onUpdateTypography={updateTypography}
+                    onResetDesign={resetCardDesign}
+                  />
+                </>
+              ) : (
+                <>
+                  <h2 className="app-edit-rail__title">Resolume layout</h2>
+                  <p className="hint app-edit-rail__hint">
+                    Combined title, verse boxes, and global fonts.
+                  </p>
+                  <DesignToolbar
+                    mode="resolume"
+                    layout={resolumeLayout}
+                    onUpdateLayout={updateResolumeLayout}
+                    typography={resolumeTypography}
+                    onUpdateTypography={updateResolumeTypography}
+                    onResetDesign={resetResolumeDesign}
+                  />
+                </>
+              )}
+            </section>
+          </aside>
+          )}
         </div>
       </div>
 

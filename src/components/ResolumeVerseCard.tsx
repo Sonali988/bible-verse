@@ -3,7 +3,12 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import type { LayoutSpec, TypographySpec, VersePage } from "../bible/types";
+import {
+  DEFAULT_CARD_BACKGROUND_COLOR,
+  type LayoutSpec,
+  type TypographySpec,
+  type VersePage,
+} from "../bible/types";
 import { formatHindiReference, formatReference } from "../lib/referenceParser";
 import { highlightSegments } from "../lib/highlightSegments";
 
@@ -103,7 +108,7 @@ export function ResolumeVerseCard({
           style={{
             position: "absolute",
             inset: 0,
-            background: "linear-gradient(160deg, #1a1a2e 0%, #16213e 100%)",
+            background: DEFAULT_CARD_BACKGROUND_COLOR,
           }}
         />
       )}

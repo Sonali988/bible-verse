@@ -158,6 +158,9 @@ export function clampLayoutTextToLeftHalf(layout: LayoutSpec): LayoutSpec {
   };
 }
 
+/** Default verse card background when no custom image is uploaded (`public/bg.png` matches this). */
+export const DEFAULT_CARD_BACKGROUND_COLOR = "#2a6e52";
+
 /** Default section title sizes (reference + version line). */
 export const DEFAULT_TITLE_FONT_PX_HI = 38;
 export const DEFAULT_TITLE_FONT_PX_EN = 40;

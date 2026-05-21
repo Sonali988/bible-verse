@@ -1,22 +1,11 @@
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { BibleProvider } from "../bible/provider";
 import type { VerseRef } from "../bible/types";
-import { parseReference, formatReference } from "../lib/referenceParser";
-
-type SliderHoverTip = { verse: number; percent: number };
-
-function verseAtSliderPointer(
-  el: HTMLInputElement,
-  clientX: number,
-): SliderHoverTip {
-  const rect = el.getBoundingClientRect();
-  const width = rect.width || 1;
-  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / width));
-  const min = Number(el.min) || 1;
-  const max = Number(el.max) || min;
-  const verse = Math.round(min + ratio * (max - min));
-  return { verse, percent: ratio * 100 };
-}
+import {
+  isNewTestamentBookId,
+  partitionBooksByTestament,
+} from "../bible/books";
+import { formatReference } from "../lib/referenceParser";
 
 type Props = {
   providerEn: BibleProvider;
@@ -35,11 +24,21 @@ export function ReferencePicker({
   const [chapter, setChapter] = useState(1);
   const [verse, setVerse] = useState(1);
   const [maxVerse, setMaxVerse] = useState(1);
-  const [quick, setQuick] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [sliderHover, setSliderHover] = useState<SliderHoverTip | null>(null);
 
   const ready = providerEn.isReady() && providerHi.isReady();
+
+  const verseNumbers = useMemo(
+    () => Array.from({ length: maxVerse }, (_, i) => i + 1),
+    [maxVerse],
+  );
+
+  const { oldTestament, newTestament } = useMemo(
+    () => partitionBooksByTestament(books),
+    [books],
+  );
+
+  const isNewTestament = isNewTestamentBookId(bookId);
 
   useEffect(() => {
     if (!ready) {
@@ -126,64 +125,58 @@ export function ReferencePicker({
     }
   };
 
-  const applyQuick = () => {
-    const p = parseReference(quick);
-    if (!p) {
-      setError("Could not parse reference. Example: John 3:16 or Jn 3:16");
-      return;
-    }
-    setError(null);
-    setBookId(p.bookId);
-    setChapter(p.chapter);
-    setVerse(p.verse);
-  };
-
-  const onVerseSliderHover = (e: MouseEvent<HTMLInputElement>) => {
-    setSliderHover(verseAtSliderPointer(e.currentTarget, e.clientX));
-  };
-
   return (
-    <section className="panel">
+    <section className="panel panel--compact">
       <h2>Reference</h2>
       {!ready && (
         <p className="warn">Load NKJV and Hindi SQLite files to enable lookup.</p>
       )}
-      <div className="grid2">
-        <label>
-          Quick entry
-          <input
-            value={quick}
-            onChange={(e) => setQuick(e.target.value)}
-            placeholder="e.g. John 3:16 or Jn 3:16"
-          />
-        </label>
-        <div className="btn-row">
-          <button type="button" className="btn" onClick={applyQuick}>
-            Apply quick entry
-          </button>
-        </div>
-      </div>
-      <div className="grid4">
-        <label>
-          Book
+      <div className="reference-picker__controls">
+        <label className="reference-picker__field reference-picker__field--book">
+          <span>Old Testament</span>
           <select
-            value={bookId}
-            onChange={(e) => setBookId(e.target.value)}
-            disabled={!ready}
+            className="reference-picker__select"
+            value={isNewTestament ? "" : bookId}
+            onChange={(e) => {
+              const id = e.target.value;
+              if (id) setBookId(id);
+            }}
+            disabled={!ready || oldTestament.length === 0}
           >
-            {books.map((b) => (
+            <option value="">Book…</option>
+            {oldTestament.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
               </option>
             ))}
           </select>
         </label>
-        <label>
-          Chapter
+        <label className="reference-picker__field reference-picker__field--book">
+          <span>New Testament</span>
           <select
+            className="reference-picker__select"
+            value={isNewTestament ? bookId : ""}
+            onChange={(e) => {
+              const id = e.target.value;
+              if (id) setBookId(id);
+            }}
+            disabled={!ready || newTestament.length === 0}
+          >
+            <option value="">Book…</option>
+            {newTestament.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="reference-picker__field reference-picker__field--chapter">
+          <span>Chapter</span>
+          <select
+            className="reference-picker__select"
             value={chapter}
             onChange={(e) => setChapter(Number(e.target.value))}
-            disabled={!ready}
+            disabled={!ready || !bookId}
           >
             {chapters.map((c) => (
               <option key={c} value={c}>
@@ -192,39 +185,40 @@ export function ReferencePicker({
             ))}
           </select>
         </label>
-        <label className="toolbar-field reference-picker-verse">
-          <span>Verse: {verse}</span>
-          <div className="reference-picker-verse-slider">
-            {sliderHover && ready && (
-              <span
-                className="reference-picker-verse-tooltip"
-                style={{ left: `${sliderHover.percent}%` }}
-              >
-                {sliderHover.verse}
-              </span>
-            )}
-            <input
-              type="range"
-              min={1}
-              max={maxVerse}
-              step={1}
-              value={verse}
-              onChange={(e) => setVerse(Number(e.target.value))}
-              onMouseMove={onVerseSliderHover}
-              onMouseEnter={onVerseSliderHover}
-              onMouseLeave={() => setSliderHover(null)}
-              disabled={!ready}
-            />
-          </div>
-        </label>
       </div>
+
+      <div className="reference-picker__verses">
+        <span className="reference-picker__verses-label">Verse</span>
+        <div className="verse-chip-strip" role="group" aria-label="Select verse">
+          {verseNumbers.map((v) => (
+            <button
+              key={v}
+              type="button"
+              className={
+                v === verse ? "verse-chip verse-chip--active" : "verse-chip"
+              }
+              disabled={!ready}
+              aria-pressed={v === verse}
+              onClick={() => setVerse(v)}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {refObj && (
-        <p className="muted">
-          Current: <strong>{formatReference(refObj)}</strong>
+        <p className="muted reference-picker__current">
+          <span className="chip chip--accent">{formatReference(refObj)}</span>
         </p>
       )}
       {error && <p className="error">{error}</p>}
-      <button type="button" className="btn btn--primary" onClick={fetchPreview} disabled={!ready}>
+      <button
+        type="button"
+        className="btn btn--primary reference-picker__fetch"
+        onClick={() => void fetchPreview()}
+        disabled={!ready}
+      >
         Fetch English + Hindi
       </button>
     </section>
