@@ -675,7 +675,7 @@ export default function App() {
         </label>
         <p className="hint" style={{ marginTop: "0.35rem" }}>
           With no upload, cards use the default background color (
-          <code>#2a6e52</code> in <code>types.ts</code>). You can also replace{" "}
+          <code>#410360</code> in <code>types.ts</code>). You can also replace{" "}
           <code>public/bg.png</code> on disk if you prefer a raster default. Uploads must be a normal
           browser image type (PNG, JPEG, WebP); HEIC often will not display.
         </p>
@@ -847,20 +847,6 @@ export default function App() {
               updatePageTypographyForSelected(patch, "typographySizes")
             }
           />
-
-          <p className="muted" style={{ marginBottom: "0.5rem" }}>
-            Cards here are shown smaller so they fit on screen. Downloaded Live PNGs use the full{" "}
-            {cardLayout.width}×{cardLayout.height} px layout from <strong>Edit card — Live</strong>{" "}
-            (saved in this browser).
-            {(cardLayout.width !== CARD_LAYOUT.width ||
-              cardLayout.height !== CARD_LAYOUT.height) && (
-                <>
-                  {" "}
-                  The built-in default is {CARD_LAYOUT.width}×{CARD_LAYOUT.height} px — choose{" "}
-                  <strong>Reset Live design to defaults</strong> in Edit — Live to restore it.
-                </>
-              )}
-          </p>
               </CollapsiblePanel>
 
             <CollapsiblePanel

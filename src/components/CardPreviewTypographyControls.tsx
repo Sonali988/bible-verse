@@ -1,8 +1,10 @@
+import { useState } from "react";
 import {
   MAX_VERSE_BODY_FONT_PX,
   type PageTypographyOverrides,
   type TypographySpec,
 } from "../bible/types";
+import { TitleVerseStyleModal } from "./TitleVerseStyleModal";
 
 type Props = {
   previewLabel: string;
@@ -83,18 +85,14 @@ function clampVersePx(n: number, fallback: number): number {
   return Math.max(6, Math.min(MAX_VERSE_BODY_FONT_PX, Math.round(n)));
 }
 
-function normalizeHex(color: string, fallback: string): string {
-  const s = color.trim();
-  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s;
-  return fallback;
-}
-
 export function CardPreviewTypographyControls({
   previewLabel,
   typography,
   enabled,
   onUpdate,
 }: Props) {
+  const [styleModalOpen, setStyleModalOpen] = useState(false);
+
   return (
     <div
       className="design-toolbar preview-typography-controls"
@@ -102,12 +100,21 @@ export function CardPreviewTypographyControls({
     >
       {!enabled && (
         <p className="hint" style={{ marginTop: 0, marginBottom: "0.5rem" }}>
-          Click a card in this preview to edit font sizes and colors for that card only. Changes
-          here do not affect the other preview.
+          Click a card in this preview to edit typography for that card only. Changes here do not
+          affect the other preview.
         </p>
       )}
 
-      <p className="design-toolbar__section-label">Font sizes</p>
+      <div className="design-toolbar__section-head">
+        <p className="design-toolbar__section-label">Typography</p>
+        <button
+          type="button"
+          className="btn btn--sm design-toolbar__section-action"
+          onClick={() => setStyleModalOpen(true)}
+        >
+          Colors & alignment
+        </button>
+      </div>
       <div className="design-toolbar__row design-toolbar__row--controls">
         <Num
           label="Hindi title (px)"
@@ -169,69 +176,14 @@ export function CardPreviewTypographyControls({
         />
       </div>
 
-      <p className="design-toolbar__section-label">Title & verse style</p>
-      <div className="design-toolbar__row design-toolbar__row--controls">
-        <label className="toolbar-field">
-          <span>Title color</span>
-          <input
-            type="color"
-            value={normalizeHex(typography.titleColor, "#ffffff")}
-            disabled={!enabled}
-            onChange={(e) => onUpdate({ titleColor: e.target.value })}
-          />
-        </label>
-        <label className="toolbar-field">
-          <span>Title align</span>
-          <select
-            value={typography.titleTextAlign}
-            disabled={!enabled}
-            onChange={(e) =>
-              onUpdate({
-                titleTextAlign: e.target.value as TypographySpec["titleTextAlign"],
-              })
-            }
-          >
-            <option value="left">Left</option>
-            <option value="center">Center</option>
-            <option value="right">Right</option>
-          </select>
-        </label>
-        <label className="toolbar-field">
-          <span>Verse color</span>
-          <input
-            type="color"
-            value={normalizeHex(typography.bodyColor, "#ffffff")}
-            disabled={!enabled}
-            onChange={(e) => onUpdate({ bodyColor: e.target.value })}
-          />
-        </label>
-        <label className="toolbar-field">
-          <span>Highlight color</span>
-          <input
-            type="color"
-            value={normalizeHex(typography.highlightColor, "#f1a600")}
-            disabled={!enabled}
-            onChange={(e) => onUpdate({ highlightColor: e.target.value })}
-          />
-        </label>
-        <label className="toolbar-field">
-          <span>Verse align</span>
-          <select
-            value={typography.textAlign}
-            disabled={!enabled}
-            onChange={(e) =>
-              onUpdate({
-                textAlign: e.target.value as TypographySpec["textAlign"],
-              })
-            }
-          >
-            <option value="left">Left</option>
-            <option value="center">Center</option>
-            <option value="right">Right</option>
-            <option value="justify">Justify (fill line width)</option>
-          </select>
-        </label>
-      </div>
+      <TitleVerseStyleModal
+        open={styleModalOpen}
+        previewLabel={previewLabel}
+        typography={typography}
+        enabled={enabled}
+        onUpdate={onUpdate}
+        onClose={() => setStyleModalOpen(false)}
+      />
     </div>
   );
 }

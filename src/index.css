@@ -1061,6 +1061,32 @@ textarea {
   margin-top: 1rem;
 }
 
+.design-toolbar__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin: 0.65rem 0 0.35rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border);
+}
+
+.design-toolbar__section-head .design-toolbar__section-label {
+  margin: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.design-toolbar__section-action {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.title-verse-style-modal {
+  width: min(100%, 32rem);
+}
+
 .design-toolbar {
   margin: 0;
   padding: 0;
