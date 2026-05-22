@@ -675,7 +675,7 @@ export default function App() {
         </label>
         <p className="hint" style={{ marginTop: "0.35rem" }}>
           With no upload, cards use the default background color (
-          <code>#410360</code> in <code>types.ts</code>). You can also replace{" "}
+          <code>#554111</code> in <code>types.ts</code>). You can also replace{" "}
           <code>public/bg.png</code> on disk if you prefer a raster default. Uploads must be a normal
           browser image type (PNG, JPEG, WebP); HEIC often will not display.
         </p>
