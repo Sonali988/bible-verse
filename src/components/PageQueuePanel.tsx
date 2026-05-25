@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { HighlightRange, VersePage } from "../bible/types";
 import { formatReference } from "../lib/referenceParser";
+import { ConfirmModal } from "./ConfirmModal";
 import { HighlightEditor } from "./HighlightEditor";
 
 type Props = {
@@ -8,6 +10,7 @@ type Props = {
   selected: VersePage | null;
   onSelect: (id: string) => void;
   onRemove: (id: string) => void;
+  onRemoveAll: () => void;
   exportBusy: boolean;
   onOpenExport: () => void;
   onUpdateHighlights: (lang: "en" | "hi", ranges: HighlightRange[]) => void;
@@ -25,12 +28,15 @@ export function PageQueuePanel({
   selected,
   onSelect,
   onRemove,
+  onRemoveAll,
   exportBusy,
   onOpenExport,
   onUpdateHighlights,
   labelEn,
   labelHi,
 }: Props) {
+  const [removeAllConfirmOpen, setRemoveAllConfirmOpen] = useState(false);
+
   return (
     <section className="panel page-queue-panel">
       <div className="page-queue-panel__head">
@@ -43,14 +49,24 @@ export function PageQueuePanel({
         <div className="page-queue-panel__head-actions">
           {pages.length > 0 && <span className="badge">{pages.length}</span>}
           {pages.length > 0 && (
-            <button
-              type="button"
-              className="btn btn--primary btn--sm"
-              disabled={exportBusy}
-              onClick={onOpenExport}
-            >
-              Export…
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm page-queue-panel__remove-all"
+                disabled={exportBusy}
+                onClick={() => setRemoveAllConfirmOpen(true)}
+              >
+                Remove all
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                disabled={exportBusy}
+                onClick={onOpenExport}
+              >
+                Export…
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -136,6 +152,16 @@ export function PageQueuePanel({
           )}
         </>
       )}
+
+      <ConfirmModal
+        open={removeAllConfirmOpen}
+        title="Remove all verses"
+        message="Do you really want to delete all the verses you created?"
+        confirmLabel="Remove all"
+        cancelLabel="Keep verses"
+        onConfirm={onRemoveAll}
+        onClose={() => setRemoveAllConfirmOpen(false)}
+      />
     </section>
   );
 }

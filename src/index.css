@@ -1087,6 +1087,35 @@ textarea {
   width: min(100%, 32rem);
 }
 
+.confirm-modal {
+  width: min(100%, 22rem);
+}
+
+.confirm-modal__message {
+  margin: 0 0 1.1rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.confirm-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.confirm-modal__confirm {
+  border-color: rgba(231, 76, 60, 0.45);
+  background: rgba(231, 76, 60, 0.18);
+  color: #fff;
+}
+
+.confirm-modal__confirm:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+
 .design-toolbar {
   margin: 0;
   padding: 0;
@@ -1545,6 +1574,12 @@ h2 {
   flex-shrink: 0;
 }
 
+.page-queue-panel__remove-all:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: rgba(231, 76, 60, 0.35);
+  background: rgba(231, 76, 60, 0.1);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1596,6 +1631,11 @@ h2 {
   padding: 0.15rem 0.45rem;
 }
 
+.modal.export-modal {
+  width: min(100%, 28rem);
+  max-height: min(90vh, 44rem);
+}
+
 .export-modal__pages-head {
   display: flex;
   flex-wrap: wrap;
@@ -1621,7 +1661,7 @@ h2 {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 11rem;
+  max-height: min(50vh, 22rem);
   overflow-y: auto;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);

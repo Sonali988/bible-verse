@@ -67,7 +67,7 @@ export function ExportModal({
   return (
     <div className="modal-overlay" role="presentation" onClick={onClose}>
       <div
-        className="modal panel"
+        className="modal panel export-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="export-modal-title"

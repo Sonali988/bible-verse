@@ -750,6 +750,10 @@ export default function App() {
           setPages((xs) => xs.filter((x) => x.id !== id));
           if (selectedId === id) setSelectedId(null);
         }}
+        onRemoveAll={() => {
+          setPages([]);
+          setSelectedId(null);
+        }}
         exportBusy={exportBusy}
         onOpenExport={() => setExportModalOpen(true)}
         onUpdateHighlights={updateSelectedHighlights}
