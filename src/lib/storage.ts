@@ -4,6 +4,11 @@ import {
   type TypographySpec,
   type VersePage,
 } from "../bible/types";
+import {
+  DEFAULT_VERSE_BLOCK_ORDER,
+  normalizeVerseBlockOrder,
+  type VerseBlockOrder,
+} from "./verseBlockOrder";
 import { normalizeVerseRef } from "./referenceParser";
 import type { SqliteSchemaConfig } from "../bible/sqlite/schemaConfig";
 
@@ -14,6 +19,7 @@ const K_TYPO = "bvc:typography";
 const K_RESOLUME_TYPO = "bvc:resolumeTypography";
 const K_SCHEMA_EN = "bvc:schemaEn";
 const K_SCHEMA_HI = "bvc:schemaHi";
+const K_VERSE_BLOCK_ORDER = "bvc:verseBlockOrder";
 
 function isValidLayout(value: unknown): value is LayoutSpec {
   if (!value || typeof value !== "object") return false;
@@ -35,6 +41,7 @@ export type PersistedState = {
   resolumeTypography: TypographySpec;
   schemaEn: SqliteSchemaConfig;
   schemaHi: SqliteSchemaConfig;
+  verseBlockOrder: VerseBlockOrder;
 };
 
 export function loadPersisted(): Partial<PersistedState> {
@@ -73,6 +80,12 @@ export function loadPersisted(): Partial<PersistedState> {
     const schemaHi = JSON.parse(
       localStorage.getItem(K_SCHEMA_HI) ?? "null",
     ) as SqliteSchemaConfig | null;
+    const verseBlockOrderRaw = localStorage.getItem(K_VERSE_BLOCK_ORDER);
+    const verseBlockOrder =
+      verseBlockOrderRaw != null
+        ? normalizeVerseBlockOrder(JSON.parse(verseBlockOrderRaw))
+        : undefined;
+
     return {
       pages: pages ?? undefined,
       cardLayout,
@@ -81,6 +94,7 @@ export function loadPersisted(): Partial<PersistedState> {
       resolumeTypography: resolumeTypography ?? undefined,
       schemaEn: schemaEn ?? undefined,
       schemaHi: schemaHi ?? undefined,
+      verseBlockOrder,
     };
   } catch {
     return {};
@@ -95,4 +109,7 @@ export function savePersisted(state: PersistedState): void {
   localStorage.setItem(K_RESOLUME_TYPO, JSON.stringify(state.resolumeTypography));
   localStorage.setItem(K_SCHEMA_EN, JSON.stringify(state.schemaEn));
   localStorage.setItem(K_SCHEMA_HI, JSON.stringify(state.schemaHi));
+  localStorage.setItem(K_VERSE_BLOCK_ORDER, JSON.stringify(state.verseBlockOrder));
 }
+
+export { DEFAULT_VERSE_BLOCK_ORDER };

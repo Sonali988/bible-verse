@@ -33,7 +33,9 @@ import { renderNodeToPng } from "./export/renderPng";
 import { savePng, zipBlobs } from "./export/downloadZip";
 import { formatReference } from "./lib/referenceParser";
 import { newId } from "./lib/id";
-import { loadPersisted, savePersisted } from "./lib/storage";
+import { loadPersisted, savePersisted, DEFAULT_VERSE_BLOCK_ORDER } from "./lib/storage";
+import type { VerseBlockOrder } from "./lib/verseBlockOrder";
+import { VerseOrderControl } from "./components/VerseOrderControl";
 import {
   BUNDLED_SQLITE_URLS,
   fetchSqliteArrayBuffer,
@@ -97,6 +99,9 @@ export default function App() {
   const [resolumeTypography, setResolumeTypography] = useState<TypographySpec>(() =>
     normalizeTypography(persisted.resolumeTypography ?? defaultResolumeTypography()),
   );
+  const [verseBlockOrder, setVerseBlockOrder] = useState<VerseBlockOrder>(
+    () => persisted.verseBlockOrder ?? DEFAULT_VERSE_BLOCK_ORDER,
+  );
   const [schemaEnJson, setSchemaEnJson] = useState(() =>
     JSON.stringify(persisted.schemaEn ?? defaultSqliteSchema(), null, 2),
   );
@@ -157,8 +162,18 @@ export default function App() {
       resolumeTypography,
       schemaEn,
       schemaHi,
+      verseBlockOrder,
     });
-  }, [pages, cardLayout, typography, resolumeLayout, resolumeTypography, schemaEn, schemaHi]);
+  }, [
+    pages,
+    cardLayout,
+    typography,
+    resolumeLayout,
+    resolumeTypography,
+    schemaEn,
+    schemaHi,
+    verseBlockOrder,
+  ]);
 
   useEffect(() => {
     if (selectedId && !pages.some((p) => p.id === selectedId)) {
@@ -834,6 +849,7 @@ export default function App() {
                         backgroundDataUrl={cardBackgroundUrl}
                         versionLabelEn={LABEL_EN}
                         versionLabelHi={LABEL_HI}
+                        verseBlockOrder={verseBlockOrder}
                       />
                     </div>
                   </div>
@@ -910,6 +926,7 @@ export default function App() {
                         backgroundDataUrl={cardBackgroundUrl}
                         versionLabelEn={LABEL_EN}
                         versionLabelHi={LABEL_HI}
+                        verseBlockOrder={verseBlockOrder}
                       />
                     </div>
                   </div>
@@ -938,6 +955,12 @@ export default function App() {
           {editRailOpen && (
           <aside className="app-edit-rail" aria-label="Edit card design">
             <p className="workflow-heading app-edit-rail__heading">Edit card</p>
+            <section className="panel app-edit-rail__panel app-edit-rail__panel--order">
+              <VerseOrderControl
+                value={verseBlockOrder}
+                onChange={setVerseBlockOrder}
+              />
+            </section>
             <div
               className="variant-tabs"
               role="tablist"
@@ -1043,6 +1066,7 @@ export default function App() {
                 backgroundDataUrl={cardBackgroundUrl}
                 versionLabelEn={LABEL_EN}
                 versionLabelHi={LABEL_HI}
+                verseBlockOrder={verseBlockOrder}
               />
             </div>
           </div>
@@ -1068,6 +1092,7 @@ export default function App() {
                 backgroundDataUrl={cardBackgroundUrl}
                 versionLabelEn={LABEL_EN}
                 versionLabelHi={LABEL_HI}
+                verseBlockOrder={verseBlockOrder}
               />
             </div>
           </div>

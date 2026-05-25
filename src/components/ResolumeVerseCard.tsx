@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useLayoutEffect,
   useState,
   type CSSProperties,
@@ -11,6 +12,8 @@ import {
 } from "../bible/types";
 import { formatHindiReference, formatReference } from "../lib/referenceParser";
 import { highlightSegments } from "../lib/highlightSegments";
+import { verseBodyRect, type VerseBlockOrder } from "../lib/verseBlockOrder";
+import { absoluteTextBox, verseBodyEdgePadding } from "../lib/verseBoxStyle";
 
 const VERSE_BODY_FONT_EN = '"Poppins", system-ui, sans-serif';
 const VERSE_BODY_FONT_HI =
@@ -23,19 +26,8 @@ export type ResolumeVerseCardProps = {
   backgroundDataUrl: string | null;
   versionLabelEn: string;
   versionLabelHi: string;
+  verseBlockOrder?: VerseBlockOrder;
 };
-
-function boxStyle(r: { x: number; y: number; width: number; height: number }): CSSProperties {
-  return {
-    position: "absolute",
-    left: r.x,
-    top: r.y,
-    width: r.width,
-    height: r.height,
-    boxSizing: "border-box",
-    overflow: "hidden",
-  };
-}
 
 function verseBodyAlignmentStyle(
   typography: TypographySpec,
@@ -58,6 +50,7 @@ export function ResolumeVerseCard({
   backgroundDataUrl,
   versionLabelEn,
   versionLabelHi,
+  verseBlockOrder = "hi-first",
 }: ResolumeVerseCardProps) {
   const [bgLoadFailed, setBgLoadFailed] = useState(false);
 
@@ -69,6 +62,42 @@ export function ResolumeVerseCard({
   const combinedTitle = layout.titleHi;
   const hiTitle = `${formatHindiReference(page.ref)} ${versionLabelHi}`;
   const enTitle = `${formatReference(page.ref)} ${versionLabelEn}`;
+  const hiBodyRect = verseBodyRect(layout, "hi", verseBlockOrder);
+  const enBodyRect = verseBodyRect(layout, "en", verseBlockOrder);
+  const titleParts =
+    verseBlockOrder === "en-first"
+      ? (
+          [
+            {
+              key: "en",
+              text: enTitle,
+              fontFamily: typography.fontFamilyEn,
+              fontSize: typography.titleFontPxEn,
+            },
+            {
+              key: "hi",
+              text: hiTitle,
+              fontFamily: typography.fontFamilyHi,
+              fontSize: typography.titleFontPxHi,
+            },
+          ] as const
+        )
+      : (
+          [
+            {
+              key: "hi",
+              text: hiTitle,
+              fontFamily: typography.fontFamilyHi,
+              fontSize: typography.titleFontPxHi,
+            },
+            {
+              key: "en",
+              text: enTitle,
+              fontFamily: typography.fontFamilyEn,
+              fontSize: typography.titleFontPxEn,
+            },
+          ] as const
+        );
 
   return (
     <div
@@ -123,7 +152,7 @@ export function ResolumeVerseCard({
       >
         <div
           style={{
-            ...boxStyle(combinedTitle),
+            ...absoluteTextBox(combinedTitle),
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -135,29 +164,38 @@ export function ResolumeVerseCard({
             textOverflow: "ellipsis",
           }}
         >
-          <span
-            style={{
-              fontFamily: typography.fontFamilyHi,
-              fontSize: typography.titleFontPxHi,
-            }}
-          >
-            {hiTitle}
-          </span>
-          <span style={{ margin: "0 0.35em", opacity: 0.85, fontSize: typography.titleFontPxHi, fontWeight: 700 }}> | </span>
-          <span
-            style={{
-              fontFamily: typography.fontFamilyEn,
-              fontSize: typography.titleFontPxEn,
-            }}
-          >
-            {enTitle}
-          </span>
+          {titleParts.map((part, index) => (
+            <Fragment key={part.key}>
+              {index > 0 && (
+                <span
+                  style={{
+                    margin: "0 0.35em",
+                    opacity: 0.85,
+                    fontSize: titleParts[index - 1]!.fontSize,
+                    fontWeight: 700,
+                  }}
+                >
+                  |
+                </span>
+              )}
+              <span
+                style={{
+                  fontFamily: part.fontFamily,
+                  fontSize: part.fontSize,
+                }}
+              >
+                {part.text}
+              </span>
+            </Fragment>
+          ))}
         </div>
 
         <div
           lang="hi"
+          className="verse-body-box"
           style={{
-            ...boxStyle(layout.bodyHi),
+            ...absoluteTextBox(hiBodyRect),
+            ...verseBodyEdgePadding(typography.bodyFontPxHi, "hi"),
             fontFamily: VERSE_BODY_FONT_HI,
             fontSize: typography.bodyFontPxHi,
             lineHeight: typography.lineHeightHi,
@@ -175,16 +213,16 @@ export function ResolumeVerseCard({
 
         <div
           lang="en"
+          className="verse-body-box"
           style={{
-            ...boxStyle(layout.bodyEn),
+            ...absoluteTextBox(enBodyRect),
+            ...verseBodyEdgePadding(typography.bodyFontPxEn, "en"),
             fontFamily: VERSE_BODY_FONT_EN,
             fontSize: typography.bodyFontPxEn,
             lineHeight: typography.lineHeightEn,
             ...verseBodyAlignmentStyle(typography, "en"),
             fontWeight: 700,
             color: typography.bodyColor,
-            textShadow:
-              "0 1px 4px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.55)",
           }}
         >
           {highlightSegments(

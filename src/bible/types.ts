@@ -97,10 +97,10 @@ export function mergePageTypography(
 export const CARD_LAYOUT: LayoutSpec = {
   width: 1920,
   height: 1080,
-  titleHi: { x: 30, y: 220, width: 660, height: 56 },
-  bodyHi: { x: 30, y: 300, width: 660, height: 350 },
-  titleEn: { x: 30, y: 672, width: 660, height: 56 },
-  bodyEn: { x: 30, y: 742, width: 660, height: 338 },
+  titleHi: { x: 30, y: 160, width: 660, height: 56 },
+  bodyHi: { x: 30, y: 240, width: 660, height: 370 },
+  titleEn: { x: 30, y: 632, width: 660, height: 56 },
+  bodyEn: { x: 30, y: 692, width: 660, height: 365 },
 };
 
 /**

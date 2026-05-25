@@ -194,6 +194,16 @@ body {
   margin-bottom: 0;
 }
 
+.app-edit-rail__panel--order {
+  padding-bottom: 0.15rem;
+}
+
+.verse-order-control .design-toolbar__section-label {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .app-edit-rail__title {
   margin: 0 0 0.25rem;
   font-size: 1rem;
@@ -951,6 +961,11 @@ textarea {
   left: 0;
   top: 0;
   transform-origin: top left;
+}
+
+/* Extra room for bold / Devanagari glyphs inside overflow:hidden verse boxes */
+.verse-body-box {
+  -webkit-font-smoothing: antialiased;
 }
 
 .page-queue-highlights--edit {
