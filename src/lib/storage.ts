@@ -20,6 +20,8 @@ const K_RESOLUME_TYPO = "bvc:resolumeTypography";
 const K_SCHEMA_EN = "bvc:schemaEn";
 const K_SCHEMA_HI = "bvc:schemaHi";
 const K_VERSE_BLOCK_ORDER = "bvc:verseBlockOrder";
+const K_USE_BIBLE_COM_EN = "bvc:useBibleComEn";
+const K_USE_BIBLE_COM_HI = "bvc:useBibleComHi";
 
 function isValidLayout(value: unknown): value is LayoutSpec {
   if (!value || typeof value !== "object") return false;
@@ -42,6 +44,8 @@ export type PersistedState = {
   schemaEn: SqliteSchemaConfig;
   schemaHi: SqliteSchemaConfig;
   verseBlockOrder: VerseBlockOrder;
+  useBibleComEn: boolean;
+  useBibleComHi: boolean;
 };
 
 export function loadPersisted(): Partial<PersistedState> {
@@ -85,6 +89,12 @@ export function loadPersisted(): Partial<PersistedState> {
       verseBlockOrderRaw != null
         ? normalizeVerseBlockOrder(JSON.parse(verseBlockOrderRaw))
         : undefined;
+    const useBibleComEnRaw = localStorage.getItem(K_USE_BIBLE_COM_EN);
+    const useBibleComHiRaw = localStorage.getItem(K_USE_BIBLE_COM_HI);
+    const useBibleComEn =
+      useBibleComEnRaw != null ? JSON.parse(useBibleComEnRaw) === true : undefined;
+    const useBibleComHi =
+      useBibleComHiRaw != null ? JSON.parse(useBibleComHiRaw) === true : undefined;
 
     return {
       pages: pages ?? undefined,
@@ -95,6 +105,8 @@ export function loadPersisted(): Partial<PersistedState> {
       schemaEn: schemaEn ?? undefined,
       schemaHi: schemaHi ?? undefined,
       verseBlockOrder,
+      useBibleComEn,
+      useBibleComHi,
     };
   } catch {
     return {};
@@ -110,6 +122,8 @@ export function savePersisted(state: PersistedState): void {
   localStorage.setItem(K_SCHEMA_EN, JSON.stringify(state.schemaEn));
   localStorage.setItem(K_SCHEMA_HI, JSON.stringify(state.schemaHi));
   localStorage.setItem(K_VERSE_BLOCK_ORDER, JSON.stringify(state.verseBlockOrder));
+  localStorage.setItem(K_USE_BIBLE_COM_EN, JSON.stringify(state.useBibleComEn));
+  localStorage.setItem(K_USE_BIBLE_COM_HI, JSON.stringify(state.useBibleComHi));
 }
 
 export { DEFAULT_VERSE_BLOCK_ORDER };

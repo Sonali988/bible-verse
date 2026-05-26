@@ -6,6 +6,8 @@ import {
   type SqliteSchemaConfig,
 } from "./bible/sqlite/schemaConfig";
 import { StaticJsonProvider } from "./bible/StaticJsonProvider";
+import { BibleComProvider } from "./bible/bibleCom/BibleComProvider";
+import { BIBLE_COM_EN, BIBLE_COM_HI } from "./bible/bibleCom/config";
 import {
   CARD_LAYOUT,
   clampLayoutTextToLeftHalf,
@@ -71,6 +73,14 @@ async function nextFrames(n: number): Promise<void> {
 export default function App() {
   const persisted = useMemo(() => loadPersisted(), []);
   const [useSample, setUseSample] = useState(true);
+  const [useBibleComEn, setUseBibleComEn] = useState(
+    () => persisted.useBibleComEn ?? true,
+  );
+  const [useBibleComHi, setUseBibleComHi] = useState(
+    () => persisted.useBibleComHi ?? true,
+  );
+  const [sqliteEnActive, setSqliteEnActive] = useState(false);
+  const [sqliteHiActive, setSqliteHiActive] = useState(false);
   const [schemaEn, setSchemaEn] = useState<SqliteSchemaConfig>(
     persisted.schemaEn ?? defaultSqliteSchema(),
   );
@@ -136,6 +146,8 @@ export default function App() {
   const [workflowVariant, setWorkflowVariant] = useState<ExportVariant>("live");
   const exportRef = useRef<HTMLDivElement>(null);
   const exportResolumeRef = useRef<HTMLDivElement>(null);
+  const sqliteEnProviderRef = useRef<SqliteBibleProvider | null>(null);
+  const sqliteHiProviderRef = useRef<SqliteBibleProvider | null>(null);
   const sidebarId = "app-sidebar-panel";
 
   const selected = pages.find((p) => p.id === selectedId) ?? null;
@@ -154,6 +166,38 @@ export default function App() {
   }, [useSample]);
 
   useEffect(() => {
+    if (useSample) return;
+
+    if (useBibleComEn) {
+      setProviderEn((prev) => {
+        if (prev instanceof BibleComProvider) return prev;
+        return new BibleComProvider(BIBLE_COM_EN);
+      });
+    } else if (sqliteEnActive && sqliteEnProviderRef.current) {
+      setProviderEn(sqliteEnProviderRef.current);
+    } else {
+      setProviderEn((prev) => {
+        if (prev instanceof StaticJsonProvider) return prev;
+        return new StaticJsonProvider(LABEL_EN, "en");
+      });
+    }
+
+    if (useBibleComHi) {
+      setProviderHi((prev) => {
+        if (prev instanceof BibleComProvider) return prev;
+        return new BibleComProvider(BIBLE_COM_HI);
+      });
+    } else if (sqliteHiActive && sqliteHiProviderRef.current) {
+      setProviderHi(sqliteHiProviderRef.current);
+    } else {
+      setProviderHi((prev) => {
+        if (prev instanceof StaticJsonProvider) return prev;
+        return new StaticJsonProvider(LABEL_HI, "hi");
+      });
+    }
+  }, [useSample, useBibleComEn, useBibleComHi, sqliteEnActive, sqliteHiActive]);
+
+  useEffect(() => {
     savePersisted({
       pages,
       cardLayout,
@@ -163,6 +207,8 @@ export default function App() {
       schemaEn,
       schemaHi,
       verseBlockOrder,
+      useBibleComEn,
+      useBibleComHi,
     });
   }, [
     pages,
@@ -173,6 +219,8 @@ export default function App() {
     schemaEn,
     schemaHi,
     verseBlockOrder,
+    useBibleComEn,
+    useBibleComHi,
   ]);
 
   useEffect(() => {
@@ -213,14 +261,12 @@ export default function App() {
         setSchemaHi(resolvedHi);
         setSchemaEnJson(JSON.stringify(resolvedEn, null, 2));
         setSchemaHiJson(JSON.stringify(resolvedHi, null, 2));
-        setProviderEn((prev) => {
-          if (prev instanceof SqliteBibleProvider) prev.close();
-          return pEn;
-        });
-        setProviderHi((prev) => {
-          if (prev instanceof SqliteBibleProvider) prev.close();
-          return pHi;
-        });
+        sqliteEnProviderRef.current = pEn;
+        sqliteHiProviderRef.current = pHi;
+        setSqliteEnActive(true);
+        setSqliteHiActive(true);
+        if (!useBibleComEn) setProviderEn(pEn);
+        if (!useBibleComHi) setProviderHi(pHi);
         setUseSample(false);
         setBundledStatus("loaded");
         setSqliteFileErr(null);
@@ -322,17 +368,15 @@ export default function App() {
       if (lang === "en") {
         setSchemaEn(resolved);
         setSchemaEnJson(JSON.stringify(resolved, null, 2));
-        setProviderEn((prev) => {
-          if (prev instanceof SqliteBibleProvider) prev.close();
-          return prov;
-        });
+        sqliteEnProviderRef.current = prov;
+        setSqliteEnActive(true);
+        if (!useBibleComEn) setProviderEn(prov);
       } else {
         setSchemaHi(resolved);
         setSchemaHiJson(JSON.stringify(resolved, null, 2));
-        setProviderHi((prev) => {
-          if (prev instanceof SqliteBibleProvider) prev.close();
-          return prov;
-        });
+        sqliteHiProviderRef.current = prov;
+        setSqliteHiActive(true);
+        if (!useBibleComHi) setProviderHi(prov);
       }
       setUseSample(false);
       if (JSON.stringify(resolved) !== JSON.stringify(configured)) {
@@ -561,8 +605,9 @@ export default function App() {
           <h1>Bible verse cards</h1>
         </div>
         <p className="sub">
-          Parallel {LABEL_EN} + {LABEL_HI}. Open the menu for databases and background, build a
-          queue, then use <strong>Edit card layout</strong> when you need the design panel.
+          Parallel {providerEn.versionLabel} + {providerHi.versionLabel}. Open the menu for
+          databases and background, build a queue, then use <strong>Edit card layout</strong> when
+          you need the design panel.
         </p>
         <div className="app-header__meta">
           <span className="chip">
@@ -649,27 +694,56 @@ export default function App() {
           before loading again if your table layout changed.
         </p>
         <div className="grid2" style={{ marginTop: "0.75rem" }}>
-          <label>
-            NKJV SQLite (.sqlite) — optional override
-            <input
-              type="file"
-              accept=".sqlite,.db,application/x-sqlite3,*/*"
-              onChange={(e) =>
-                void loadSqlite(e.target.files?.[0] ?? null, "en")
-              }
-            />
-          </label>
-          <label>
-            HINOVBSI (Hindi) SQLite — optional override
-            <input
-              type="file"
-              accept=".sqlite,.db,application/x-sqlite3,*/*"
-              onChange={(e) =>
-                void loadSqlite(e.target.files?.[0] ?? null, "hi")
-              }
-            />
-          </label>
+          <div className="bible-source-column">
+            <label>
+              English SQLite (.sqlite) — optional override
+              <input
+                type="file"
+                accept=".sqlite,.db,application/x-sqlite3,*/*"
+                onChange={(e) =>
+                  void loadSqlite(e.target.files?.[0] ?? null, "en")
+                }
+              />
+            </label>
+            <label className="bible-source-column__toggle btn-row">
+              <input
+                type="checkbox"
+                checked={useBibleComEn}
+                disabled={useSample}
+                onChange={(e) => setUseBibleComEn(e.target.checked)}
+              />
+              Use Bible.com API ({BIBLE_COM_EN.label})
+            </label>
+          </div>
+          <div className="bible-source-column">
+            <label>
+              Hindi SQLite (.sqlite) — optional override
+              <input
+                type="file"
+                accept=".sqlite,.db,application/x-sqlite3,*/*"
+                onChange={(e) =>
+                  void loadSqlite(e.target.files?.[0] ?? null, "hi")
+                }
+              />
+            </label>
+            <label className="bible-source-column__toggle btn-row">
+              <input
+                type="checkbox"
+                checked={useBibleComHi}
+                disabled={useSample}
+                onChange={(e) => setUseBibleComHi(e.target.checked)}
+              />
+              Use Bible.com API ({BIBLE_COM_HI.label})
+            </label>
+          </div>
         </div>
+        {!useSample && (useBibleComEn || useBibleComHi) && (
+          <p className="hint" style={{ marginTop: "0.5rem" }}>
+            Bible.com uses the same Next.js endpoint as the website. Local dev proxies requests
+            through <code>/bible-com</code>. Uncheck a box to use the SQLite file for that language
+            instead (after loading a file above).
+          </p>
+        )}
         {sqliteFileErr && <p className="error">{sqliteFileErr}</p>}
         {sqliteLoadNote && <p className="muted">{sqliteLoadNote}</p>}
         <p className="hint" style={{ marginTop: "0.65rem" }}>

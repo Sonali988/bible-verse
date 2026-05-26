@@ -693,6 +693,19 @@ textarea {
   margin-bottom: 0.75rem;
 }
 
+.bible-source-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.bible-source-column__toggle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .grid4 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

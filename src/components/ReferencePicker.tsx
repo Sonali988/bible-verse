@@ -108,7 +108,9 @@ export function ReferencePicker({
   const fetchPreview = async () => {
     setError(null);
     if (!refObj || !ready) {
-      setError("Load both SQLite databases (or enable sample data).");
+      setError(
+        "Enable Bible.com and/or load SQLite for each language, or turn on sample data.",
+      );
       return;
     }
     try {
