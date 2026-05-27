@@ -15,10 +15,6 @@ import { highlightSegments } from "../lib/highlightSegments";
 import { verseBodyRect, type VerseBlockOrder } from "../lib/verseBlockOrder";
 import { absoluteTextBox, verseBodyEdgePadding } from "../lib/verseBoxStyle";
 
-const VERSE_BODY_FONT_EN = '"Poppins", system-ui, sans-serif';
-const VERSE_BODY_FONT_HI =
-  '"Poppins", "Noto Sans Devanagari", system-ui, sans-serif';
-
 export type ResolumeVerseCardProps = {
   layout: LayoutSpec;
   typography: TypographySpec;
@@ -156,7 +152,7 @@ export function ResolumeVerseCard({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontWeight: 700,
+            fontWeight: 600,
             color: typography.titleColor,
             textAlign: typography.titleTextAlign,
             whiteSpace: "nowrap",
@@ -172,7 +168,7 @@ export function ResolumeVerseCard({
                     margin: "0 0.35em",
                     opacity: 0.85,
                     fontSize: titleParts[index - 1]!.fontSize,
-                    fontWeight: 700,
+                    fontWeight: 500,
                   }}
                 >
                   |
@@ -196,11 +192,11 @@ export function ResolumeVerseCard({
           style={{
             ...absoluteTextBox(hiBodyRect),
             ...verseBodyEdgePadding(typography.bodyFontPxHi, "hi"),
-            fontFamily: VERSE_BODY_FONT_HI,
+            fontFamily: typography.fontFamilyHi,
             fontSize: typography.bodyFontPxHi,
             lineHeight: typography.lineHeightHi,
             ...verseBodyAlignmentStyle(typography, "hi"),
-            fontWeight: 700,
+            fontWeight: 500,
             color: typography.bodyColor,
           }}
         >
@@ -217,11 +213,11 @@ export function ResolumeVerseCard({
           style={{
             ...absoluteTextBox(enBodyRect),
             ...verseBodyEdgePadding(typography.bodyFontPxEn, "en"),
-            fontFamily: VERSE_BODY_FONT_EN,
+            fontFamily: typography.fontFamilyEn,
             fontSize: typography.bodyFontPxEn,
             lineHeight: typography.lineHeightEn,
             ...verseBodyAlignmentStyle(typography, "en"),
-            fontWeight: 700,
+            fontWeight: 500,
             color: typography.bodyColor,
           }}
         >

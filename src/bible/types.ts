@@ -97,10 +97,10 @@ export function mergePageTypography(
 export const CARD_LAYOUT: LayoutSpec = {
   width: 1920,
   height: 1080,
-  titleHi: { x: 30, y: 160, width: 660, height: 56 },
-  bodyHi: { x: 30, y: 240, width: 660, height: 370 },
-  titleEn: { x: 30, y: 632, width: 660, height: 56 },
-  bodyEn: { x: 30, y: 692, width: 660, height: 365 },
+  titleHi: { x: 30, y: 130, width: 670, height: 62 },
+  bodyHi: { x: 30, y: 200, width: 670, height: 395 },
+  titleEn: { x: 30, y: 615, width: 670, height: 60 },
+  bodyEn: { x: 30, y: 675, width: 670, height: 370 },
 };
 
 /**
@@ -162,17 +162,23 @@ export function clampLayoutTextToLeftHalf(layout: LayoutSpec): LayoutSpec {
 export const DEFAULT_CARD_BACKGROUND_COLOR = "#554111";
 
 /** Default section title sizes (reference + version line). */
-export const DEFAULT_TITLE_FONT_PX_HI = 38;
-export const DEFAULT_TITLE_FONT_PX_EN = 40;
+export const DEFAULT_TITLE_FONT_PX_HI = 48;
+export const DEFAULT_TITLE_FONT_PX_EN = 50;
+
+/** Pairing 1: Poppins (EN) + Poppins / Noto Sans Devanagari (HI). */
+export const FONT_STACK_EN =
+  '"Poppins", system-ui, sans-serif';
+export const FONT_STACK_HI =
+  '"Poppins", "Noto Sans Devanagari", system-ui, sans-serif';
 
 export const defaultTypography = (): TypographySpec => ({
-  fontFamilyEn: '"Poppins", system-ui, sans-serif',
-  fontFamilyHi: '"Poppins", "Noto Sans Devanagari", system-ui, sans-serif',
+  fontFamilyEn: FONT_STACK_EN,
+  fontFamilyHi: FONT_STACK_HI,
   titleFontPxHi: DEFAULT_TITLE_FONT_PX_HI,
   titleFontPxEn: DEFAULT_TITLE_FONT_PX_EN,
   bodyFontPxHi: 42,
   bodyFontPxEn: 40,
-  lineHeightHi: 1.25,
+  lineHeightHi: 1.3,
   lineHeightEn: 1.25,
   titleTextAlign: "center",
   textAlign: "justify",
@@ -188,6 +194,7 @@ export const defaultResolumeTypography = (): TypographySpec => ({
   titleFontPxEn: 58,
   bodyFontPxHi: 56,
   bodyFontPxEn: 58,
+  lineHeightHi: 1.25,
   titleTextAlign: "center",
   textAlign: "center",
 });

@@ -48,7 +48,7 @@ export function highlightSegments(
         style={{
           backgroundColor: "transparent",
           color: highlightColor,
-          fontWeight: 700,
+          fontWeight: 500,
           padding: 0,
           borderRadius: 0,
           textAlign: "inherit",

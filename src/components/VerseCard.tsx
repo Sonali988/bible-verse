@@ -18,13 +18,6 @@ import { formatHindiReference, formatReference } from "../lib/referenceParser";
 import { highlightSegments } from "../lib/highlightSegments";
 import { verseBodyEdgePadding } from "../lib/verseBoxStyle";
 
-/** Verse body: Poppins Medium (500). Titles keep toolbar fonts + bold. */
-const VERSE_BODY_FONT_EN = '"Poppins", system-ui, sans-serif';
-const VERSE_BODY_FONT_HI =
-  '"Poppins", "Noto Sans Devanagari", system-ui, sans-serif';
-const SECTION_MAX_W = 700;
-const SECTION_MAX_H = 350;
-
 export type VerseCardProps = {
   layout: LayoutSpec;
   typography: TypographySpec;
@@ -35,22 +28,10 @@ export type VerseCardProps = {
   verseBlockOrder?: VerseBlockOrder;
 };
 
-function sectionWidth(r: LayoutSpec["bodyEn"]): number {
-  return Math.min(r.width, SECTION_MAX_W);
-}
-
-function sectionHeight(r: LayoutSpec["bodyEn"]): number {
-  return Math.min(r.height, SECTION_MAX_H);
-}
-
 function sectionBox(r: LayoutSpec["bodyEn"]): CSSProperties {
-  const sw = sectionWidth(r);
-  const sh = sectionHeight(r);
   return {
-    width: sw,
-    maxWidth: SECTION_MAX_W,
-    height: sh,
-    maxHeight: SECTION_MAX_H,
+    width: r.width,
+    height: r.height,
     boxSizing: "border-box",
     overflow: "hidden",
     flexShrink: 0,
@@ -201,7 +182,7 @@ export function VerseCard({
                     ...sectionBox(rect),
                     fontFamily: typography.fontFamilyHi,
                     fontSize: typography.titleFontPxHi,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     fontStyle: "normal",
                     color: typography.titleColor,
                     textAlign: typography.titleTextAlign,
@@ -224,11 +205,11 @@ export function VerseCard({
                     ...sectionBox(rect),
                     ...verseBodyEdgePadding(typography.bodyFontPxHi, "hi"),
                     display: "block",
-                    fontFamily: VERSE_BODY_FONT_HI,
+                    fontFamily: typography.fontFamilyHi,
                     fontSize: typography.bodyFontPxHi,
                     lineHeight: typography.lineHeightHi,
                     ...verseBodyAlignmentStyle(typography, "hi"),
-                    fontWeight: 700,
+                    fontWeight: 500,
                     color: typography.bodyColor,
                   }}
                 >
@@ -251,7 +232,7 @@ export function VerseCard({
                     ...sectionBox(rect),
                     fontFamily: typography.fontFamilyEn,
                     fontSize: typography.titleFontPxEn,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     fontStyle: "normal",
                     color: typography.titleColor,
                     textAlign: typography.titleTextAlign,
@@ -273,11 +254,11 @@ export function VerseCard({
                   ...sectionBox(rect),
                   ...verseBodyEdgePadding(typography.bodyFontPxEn, "en"),
                   display: "block",
-                  fontFamily: VERSE_BODY_FONT_EN,
+                  fontFamily: typography.fontFamilyEn,
                   fontSize: typography.bodyFontPxEn,
                   lineHeight: typography.lineHeightEn,
                   ...verseBodyAlignmentStyle(typography, "en"),
-                  fontWeight: 700,
+                  fontWeight: 500,
                   color: typography.bodyColor,
                 }}
               >
