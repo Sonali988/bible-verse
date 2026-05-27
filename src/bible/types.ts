@@ -190,13 +190,14 @@ export const defaultTypography = (): TypographySpec => ({
 /** Resolume defaults: 56px Hindi / 58px English verse bodies. */
 export const defaultResolumeTypography = (): TypographySpec => ({
   ...defaultTypography(),
-  titleFontPxHi: 56,
-  titleFontPxEn: 58,
+  titleFontPxHi: 66,
+  titleFontPxEn: 66,
   bodyFontPxHi: 56,
   bodyFontPxEn: 58,
-  lineHeightHi: 1.25,
+  lineHeightHi: 1.35,
+  lineHeightEn: 1.28,
   titleTextAlign: "center",
-  textAlign: "center",
+  textAlign: "justify",
 });
 
 type RawTypography = Partial<TypographySpec> & {

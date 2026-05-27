@@ -25,6 +25,7 @@ export function ReferencePicker({
   const [verse, setVerse] = useState(1);
   const [maxVerse, setMaxVerse] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [chapterOpen, setChapterOpen] = useState(false);
 
   const ready = providerEn.isReady() && providerHi.isReady();
 
@@ -85,6 +86,19 @@ export function ReferencePicker({
       cancelled = true;
     };
   }, [bookId, providerEn, ready]);
+
+  useEffect(() => {
+    setChapterOpen(false);
+  }, [bookId]);
+
+  useEffect(() => {
+    if (!chapterOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setChapterOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [chapterOpen]);
 
   useEffect(() => {
     if (!ready || !bookId) return;
@@ -174,20 +188,72 @@ export function ReferencePicker({
         </label>
         <label className="reference-picker__field reference-picker__field--chapter">
           <span>Chapter</span>
-          <select
-            className="reference-picker__select"
+          <input
+            type="text"
+            readOnly
+            className="reference-picker__select reference-picker__chapter-input"
             value={chapter}
-            onChange={(e) => setChapter(Number(e.target.value))}
             disabled={!ready || !bookId}
-          >
-            {chapters.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+            aria-haspopup="dialog"
+            aria-expanded={chapterOpen}
+            onClick={() => {
+              if (ready && bookId) setChapterOpen(true);
+            }}
+          />
         </label>
       </div>
+
+      {chapterOpen && (
+        <div
+          className="modal-overlay"
+          role="presentation"
+          onClick={() => setChapterOpen(false)}
+        >
+          <div
+            className="modal panel chapter-picker-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="chapter-picker-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal__head">
+              <h2 id="chapter-picker-title">Select chapter</h2>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm modal__close"
+                aria-label="Close"
+                onClick={() => setChapterOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div
+              className="chapter-grid"
+              role="group"
+              aria-label="Select chapter"
+            >
+              {chapters.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={
+                    c === chapter
+                      ? "verse-chip verse-chip--active"
+                      : "verse-chip"
+                  }
+                  aria-pressed={c === chapter}
+                  onClick={() => {
+                    setChapter(c);
+                    setChapterOpen(false);
+                  }}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="reference-picker__verses">
         <span className="reference-picker__verses-label">Verse</span>

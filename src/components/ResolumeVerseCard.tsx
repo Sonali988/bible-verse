@@ -25,14 +25,23 @@ export type ResolumeVerseCardProps = {
   verseBlockOrder?: VerseBlockOrder;
 };
 
+function titleFlexJustify(
+  align: TypographySpec["titleTextAlign"],
+): CSSProperties["justifyContent"] {
+  if (align === "right") return "flex-end";
+  if (align === "center") return "center";
+  return "flex-start";
+}
+
 function verseBodyAlignmentStyle(
   typography: TypographySpec,
   script: "hi" | "en",
-): Pick<CSSProperties, "textAlign" | "hyphens"> {
+): Pick<CSSProperties, "textAlign" | "textAlignLast" | "hyphens"> {
   const ta = typography.textAlign;
   if (ta === "justify") {
     return {
       textAlign: "justify",
+      textAlignLast: "left",
       hyphens: script === "en" ? "auto" : "manual",
     };
   }
@@ -151,7 +160,7 @@ export function ResolumeVerseCard({
             ...absoluteTextBox(combinedTitle),
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: titleFlexJustify(typography.titleTextAlign),
             fontWeight: 600,
             color: typography.titleColor,
             textAlign: typography.titleTextAlign,
