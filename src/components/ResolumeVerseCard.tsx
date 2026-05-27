@@ -173,15 +173,12 @@ export function ResolumeVerseCard({
             <Fragment key={part.key}>
               {index > 0 && (
                 <span
+                  className="resolume-title-separator"
+                  aria-hidden
                   style={{
-                    margin: "0 0.35em",
-                    opacity: 0.85,
                     fontSize: titleParts[index - 1]!.fontSize,
-                    fontWeight: 500,
                   }}
-                >
-                  |
-                </span>
+                />
               )}
               <span
                 style={{

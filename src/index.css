@@ -981,6 +981,18 @@ textarea {
   -webkit-font-smoothing: antialiased;
 }
 
+.resolume-title-separator {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 12px;
+  height: 0.9em;
+  margin: 0 0.5em;
+  background: currentColor;
+  opacity: 1;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
 .page-queue-highlights--edit {
   margin-top: 0.85rem;
   padding: 0.75rem;
