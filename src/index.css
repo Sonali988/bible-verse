@@ -1499,12 +1499,21 @@ h2 {
   cursor: not-allowed;
 }
 
-.reference-picker__current {
-  margin: 0.5rem 0 0.65rem;
+.reference-picker__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+  min-width: 0;
+}
+
+.reference-picker__ref-chip {
+  flex-shrink: 0;
 }
 
 .reference-picker__fetch {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* —— Page queue + highlights —— */

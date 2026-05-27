@@ -275,20 +275,22 @@ export function ReferencePicker({
         </div>
       </div>
 
-      {refObj && (
-        <p className="muted reference-picker__current">
-          <span className="chip chip--accent">{formatReference(refObj)}</span>
-        </p>
-      )}
       {error && <p className="error">{error}</p>}
-      <button
-        type="button"
-        className="btn btn--primary reference-picker__fetch"
-        onClick={() => void fetchPreview()}
-        disabled={!ready}
-      >
-        Fetch English + Hindi
-      </button>
+      <div className="reference-picker__actions">
+        {refObj && (
+          <span className="chip chip--accent reference-picker__ref-chip">
+            {formatReference(refObj)}
+          </span>
+        )}
+        <button
+          type="button"
+          className="btn btn--primary reference-picker__fetch"
+          onClick={() => void fetchPreview()}
+          disabled={!ready}
+        >
+          Fetch English + Hindi
+        </button>
+      </div>
     </section>
   );
 }
