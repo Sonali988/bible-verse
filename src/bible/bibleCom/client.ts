@@ -2,7 +2,7 @@ import type { VerseRef } from "../types";
 import { BIBLE_COM_EN, BIBLE_COM_HI, type BibleComVersionConfig } from "./config";
 import { chapterUsfm, verseRefToUsfm } from "./usfm";
 
-const DEFAULT_BUILD_ID = "5Z8tb8XG2WHV92II1LJ0d";
+const DEFAULT_BUILD_ID = "s5S1C6e_ILSA4q-0caNHr";
 
 type VersePageResponse = {
   pageProps?: {
@@ -20,7 +20,7 @@ const buildIdByLocale = new Map<string, string>();
 
 function bibleComOrigin(): string {
   if (import.meta.env.DEV) {
-    return `${window.location.origin}/bible-com`;
+    return "/bible-com";
   }
   return "https://www.bible.com";
 }
