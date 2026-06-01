@@ -9,7 +9,10 @@ export async function zipBlobs(
   for (const e of entries) {
     zip.file(e.name, e.blob);
   }
-  const out = await zip.generateAsync({ type: "blob" });
+  const out = await zip.generateAsync({
+    type: "blob",
+    compression: "STORE",
+  });
   saveAs(out, zipName);
 }
 

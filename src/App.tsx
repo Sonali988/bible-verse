@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { BibleProvider } from "./bible/provider";
 import { SqliteBibleProvider } from "./bible/sqlite/SqliteBibleProvider";
 import {
@@ -31,7 +32,11 @@ import { ResolumeVerseCard } from "./components/ResolumeVerseCard";
 import { DesignToolbar } from "./components/DesignToolbar";
 import { CardPreviewTypographyControls } from "./components/CardPreviewTypographyControls";
 import { CollapsiblePanel } from "./components/CollapsiblePanel";
-import { renderNodeToPng } from "./export/renderPng";
+import {
+  prefetchFontEmbedCss,
+  renderNodeToPng,
+  waitForImagesIn,
+} from "./export/renderPng";
 import { savePng, zipBlobs } from "./export/downloadZip";
 import { formatReference } from "./lib/referenceParser";
 import { newId } from "./lib/id";
@@ -59,6 +64,18 @@ function datedZipFileName(suffix: string): string {
 }
 
 type ExportVariant = "live" | "resolume";
+
+function scrollPreviewCard(id: string, variant: ExportVariant): void {
+  const elId =
+    variant === "resolume"
+      ? `preview-card-resolume-${id}`
+      : `preview-card-${id}`;
+  document.getElementById(elId)?.scrollIntoView({
+    behavior: "smooth",
+    inline: "nearest",
+    block: "nearest",
+  });
+}
 
 function exportPngFileName(ref: VerseRef, variant: ExportVariant): string {
   return `${sanitizeFileName(formatReference(ref))}-${variant}.png`;
@@ -149,6 +166,16 @@ export default function App() {
   const sqliteEnProviderRef = useRef<SqliteBibleProvider | null>(null);
   const sqliteHiProviderRef = useRef<SqliteBibleProvider | null>(null);
   const sidebarId = "app-sidebar-panel";
+
+  const selectPage = useCallback(
+    (id: string, scrollTarget?: ExportVariant) => {
+      setSelectedId(id);
+      if (scrollTarget) {
+        requestAnimationFrame(() => scrollPreviewCard(id, scrollTarget));
+      }
+    },
+    [],
+  );
 
   const selected = pages.find((p) => p.id === selectedId) ?? null;
 
@@ -306,7 +333,7 @@ export default function App() {
       highlightsHi: [],
     };
     setPages((p) => [...p, page]);
-    setSelectedId(page.id);
+    selectPage(page.id, "live");
   };
 
   const applySchemaJson = () => {
@@ -394,23 +421,74 @@ export default function App() {
 
   const cardPage = exportPage ?? selected ?? pages[0] ?? null;
 
-  const capturePngBlob = async (
-    page: VersePage,
-    variant: ExportVariant,
-  ): Promise<Blob> => {
-    setExportPage(page);
-    setExportVariant(variant);
-    await nextFrames(2);
-    await document.fonts.ready;
+  const exportNodeFor = (variant: ExportVariant) =>
+    variant === "live" ? exportRef.current : exportResolumeRef.current;
+
+  const measureExportNode = (variant: ExportVariant) => {
     const layout = variant === "live" ? cardLayout : resolumeLayout;
-    const node =
-      variant === "live" ? exportRef.current : exportResolumeRef.current;
+    const node = exportNodeFor(variant);
     if (!node) throw new Error("Export node missing");
     const ow = Math.round(node.offsetWidth);
     const oh = Math.round(node.offsetHeight);
-    const w = ow > 0 ? ow : layout.width;
-    const h = oh > 0 ? oh : layout.height;
-    return renderNodeToPng(node, { width: w, height: h });
+    return {
+      node,
+      size: {
+        width: ow > 0 ? ow : layout.width,
+        height: oh > 0 ? oh : layout.height,
+      },
+    };
+  };
+
+  const capturePngBlob = async (
+    page: VersePage,
+    variant: ExportVariant,
+    fontEmbedCSS: string,
+  ): Promise<Blob> => {
+    flushSync(() => {
+      setExportPage(page);
+      setExportVariant(variant);
+    });
+    await nextFrames(1);
+    const { node, size } = measureExportNode(variant);
+    await waitForImagesIn(node);
+    return renderNodeToPng(node, size, { fontEmbedCSS });
+  };
+
+  const prepareExportBatch = async (
+    variant: ExportVariant,
+    firstPage: VersePage,
+  ): Promise<string> => {
+    flushSync(() => {
+      setExportVariant(variant);
+      setExportPage(firstPage);
+    });
+    await document.fonts.ready;
+    await nextFrames(1);
+    const { node } = measureExportNode(variant);
+    await waitForImagesIn(node);
+    return prefetchFontEmbedCss(node);
+  };
+
+  const runExportBatch = async (
+    variant: ExportVariant,
+    list: VersePage[],
+    onBlob: (page: VersePage, blob: Blob) => void | Promise<void>,
+  ) => {
+    flushSync(() => {
+      setExportVariant(variant);
+      setExportBusy(true);
+    });
+    try {
+      const fontEmbedCSS = await prepareExportBatch(variant, list[0]!);
+      for (const p of list) {
+        const blob = await capturePngBlob(p, variant, fontEmbedCSS);
+        await onBlob(p, blob);
+      }
+    } finally {
+      setExportPage(null);
+      setExportVariant("live");
+      setExportBusy(false);
+    }
   };
 
   const pagesByIds = (ids: string[]) =>
@@ -419,45 +497,25 @@ export default function App() {
   const downloadPng = async (variant: ExportVariant, pageIds: string[]) => {
     const list = pagesByIds(pageIds);
     if (list.length === 0) return;
-    setExportBusy(true);
-    try {
-      for (let i = 0; i < list.length; i++) {
-        const p = list[i]!;
-        const blob = await capturePngBlob(p, variant);
-        savePng(blob, exportPngFileName(p.ref, variant));
-        if (i < list.length - 1) {
-          await new Promise<void>((r) => setTimeout(r, 150));
-        }
-      }
-    } finally {
-      setExportPage(null);
-      setExportVariant("live");
-      setExportBusy(false);
-    }
+    await runExportBatch(variant, list, (p, blob) => {
+      savePng(blob, exportPngFileName(p.ref, variant));
+    });
   };
 
   const downloadZip = async (variant: ExportVariant, pageIds: string[]) => {
     const list = pagesByIds(pageIds);
     if (list.length === 0) return;
-    setExportBusy(true);
-    try {
-      const entries: { name: string; blob: Blob }[] = [];
-      for (const p of list) {
-        const blob = await capturePngBlob(p, variant);
-        entries.push({
-          name: exportPngFileName(p.ref, variant),
-          blob,
-        });
-      }
-      await zipBlobs(
-        entries,
-        datedZipFileName(variant === "live" ? "live" : "resolume"),
-      );
-    } finally {
-      setExportPage(null);
-      setExportVariant("live");
-      setExportBusy(false);
-    }
+    const entries: { name: string; blob: Blob }[] = [];
+    await runExportBatch(variant, list, (p, blob) => {
+      entries.push({
+        name: exportPngFileName(p.ref, variant),
+        blob,
+      });
+    });
+    await zipBlobs(
+      entries,
+      datedZipFileName(variant === "live" ? "live" : "resolume"),
+    );
   };
 
   const updateSelectedHighlights = (
@@ -554,13 +612,6 @@ export default function App() {
     }),
     [resolumeLayout.width, resolumeLayout.height, previewScaleResolume],
   );
-
-  useEffect(() => {
-    if (!selectedId) return;
-    document
-      .getElementById(`preview-card-${selectedId}`)
-      ?.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
-  }, [selectedId]);
 
   useEffect(() => {
     if (!sidebarOpen) return;
@@ -834,7 +885,7 @@ export default function App() {
         pages={pages}
         selectedId={selectedId}
         selected={selected}
-        onSelect={setSelectedId}
+        onSelect={(id) => selectPage(id, "live")}
         onRemove={(id) => {
           setPages((xs) => xs.filter((x) => x.id !== id));
           if (selectedId === id) setSelectedId(null);
@@ -892,11 +943,11 @@ export default function App() {
                   role="button"
                   tabIndex={0}
                   title={`Select ${formatReference(p.ref)}`}
-                  onClick={() => setSelectedId(p.id)}
+                  onClick={() => selectPage(p.id, "live")}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      setSelectedId(p.id);
+                      selectPage(p.id, "live");
                     }
                   }}
                 >
@@ -965,11 +1016,11 @@ export default function App() {
                   role="button"
                   tabIndex={0}
                   title={`Select ${formatReference(p.ref)}`}
-                  onClick={() => setSelectedId(p.id)}
+                  onClick={() => selectPage(p.id, "resolume")}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      setSelectedId(p.id);
+                      selectPage(p.id, "resolume");
                     }
                   }}
                 >
@@ -1118,58 +1169,62 @@ export default function App() {
 
       {cardPage && (
         <>
-          <div className="export-hidden-host" aria-hidden>
-            <div
-              ref={exportRef}
-              className="export-card-snapshot"
-              style={{
-                width: cardLayout.width,
-                height: cardLayout.height,
-                boxSizing: "border-box",
-                overflow: "hidden",
-              }}
-            >
-              <VerseCard
-                layout={cardLayout}
-                typography={mergePageTypography(
-                  typography,
-                  cardPage,
-                  "typographySizes",
-                )}
-                page={cardPage}
-                backgroundDataUrl={cardBackgroundUrl}
-                versionLabelEn={LABEL_EN}
-                versionLabelHi={LABEL_HI}
-                verseBlockOrder={verseBlockOrder}
-              />
+          {(!exportBusy || exportVariant === "live") && (
+            <div className="export-hidden-host" aria-hidden>
+              <div
+                ref={exportRef}
+                className="export-card-snapshot"
+                style={{
+                  width: cardLayout.width,
+                  height: cardLayout.height,
+                  boxSizing: "border-box",
+                  overflow: "hidden",
+                }}
+              >
+                <VerseCard
+                  layout={cardLayout}
+                  typography={mergePageTypography(
+                    typography,
+                    cardPage,
+                    "typographySizes",
+                  )}
+                  page={cardPage}
+                  backgroundDataUrl={cardBackgroundUrl}
+                  versionLabelEn={LABEL_EN}
+                  versionLabelHi={LABEL_HI}
+                  verseBlockOrder={verseBlockOrder}
+                />
+              </div>
             </div>
-          </div>
-          <div className="export-hidden-host" aria-hidden>
-            <div
-              ref={exportResolumeRef}
-              className="export-card-snapshot"
-              style={{
-                width: resolumeLayout.width,
-                height: resolumeLayout.height,
-                boxSizing: "border-box",
-                overflow: "hidden",
-              }}
-            >
-              <ResolumeVerseCard
-                layout={resolumeLayout}
-                typography={mergePageTypography(
-                  resolumeTypography,
-                  cardPage,
-                  "resolumeTypographySizes",
-                )}
-                page={cardPage}
-                backgroundDataUrl={cardBackgroundUrl}
-                versionLabelEn={LABEL_EN}
-                versionLabelHi={LABEL_HI}
-                verseBlockOrder={verseBlockOrder}
-              />
+          )}
+          {(!exportBusy || exportVariant === "resolume") && (
+            <div className="export-hidden-host" aria-hidden>
+              <div
+                ref={exportResolumeRef}
+                className="export-card-snapshot"
+                style={{
+                  width: resolumeLayout.width,
+                  height: resolumeLayout.height,
+                  boxSizing: "border-box",
+                  overflow: "hidden",
+                }}
+              >
+                <ResolumeVerseCard
+                  layout={resolumeLayout}
+                  typography={mergePageTypography(
+                    resolumeTypography,
+                    cardPage,
+                    "resolumeTypographySizes",
+                  )}
+                  page={cardPage}
+                  backgroundDataUrl={cardBackgroundUrl}
+                  versionLabelEn={LABEL_EN}
+                  versionLabelHi={LABEL_HI}
+                  verseBlockOrder={verseBlockOrder}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
     </>
