@@ -13,7 +13,11 @@ import {
 import { formatHindiReference, formatReference } from "../lib/referenceParser";
 import { highlightSegments } from "../lib/highlightSegments";
 import { verseBodyRect, type VerseBlockOrder } from "../lib/verseBlockOrder";
-import { absoluteTextBox, verseBodyEdgePadding } from "../lib/verseBoxStyle";
+import {
+  absoluteTextBox,
+  resolumeTitleEdgePadding,
+  verseBodyEdgePadding,
+} from "../lib/verseBoxStyle";
 
 export type ResolumeVerseCardProps = {
   layout: LayoutSpec;
@@ -156,8 +160,13 @@ export function ResolumeVerseCard({
         }}
       >
         <div
+          className="resolume-title-box"
           style={{
             ...absoluteTextBox(combinedTitle),
+            ...resolumeTitleEdgePadding(
+              typography.titleFontPxHi,
+              typography.titleFontPxEn,
+            ),
             display: "flex",
             alignItems: "center",
             justifyContent: titleFlexJustify(typography.titleTextAlign),
@@ -184,6 +193,7 @@ export function ResolumeVerseCard({
                 style={{
                   fontFamily: part.fontFamily,
                   fontSize: part.fontSize,
+                  lineHeight: part.key === "hi" ? 1.35 : 1.2,
                 }}
               >
                 {part.text}

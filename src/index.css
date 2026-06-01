@@ -981,6 +981,10 @@ textarea {
   -webkit-font-smoothing: antialiased;
 }
 
+.resolume-title-box {
+  -webkit-font-smoothing: antialiased;
+}
+
 .resolume-title-separator {
   display: inline-block;
   flex-shrink: 0;

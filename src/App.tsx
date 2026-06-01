@@ -42,6 +42,7 @@ import { formatReference } from "./lib/referenceParser";
 import { newId } from "./lib/id";
 import { loadPersisted, savePersisted, DEFAULT_VERSE_BLOCK_ORDER } from "./lib/storage";
 import type { VerseBlockOrder } from "./lib/verseBlockOrder";
+import { computeAutoFitBodyFontOverrides } from "./lib/fitVerseBodyFont";
 import { VerseOrderControl } from "./components/VerseOrderControl";
 import {
   BUNDLED_SQLITE_URLS,
@@ -322,8 +323,22 @@ export default function App() {
     setDraft({ ref, textEn, textHi });
   }, []);
 
-  const addPage = () => {
+  const addPage = async () => {
     if (!draft) return;
+    await document.fonts.ready;
+    const liveBodyFonts = computeAutoFitBodyFontOverrides(
+      draft,
+      cardLayout,
+      typography,
+      verseBlockOrder,
+    );
+    const resolumeBodyFonts = computeAutoFitBodyFontOverrides(
+      draft,
+      resolumeLayout,
+      resolumeTypography,
+      verseBlockOrder,
+      "resolume",
+    );
     const page: VersePage = {
       id: newId(),
       ref: draft.ref,
@@ -331,6 +346,8 @@ export default function App() {
       textHi: draft.textHi,
       highlightsEn: [],
       highlightsHi: [],
+      typographySizes: liveBodyFonts,
+      resolumeTypographySizes: resolumeBodyFonts,
     };
     setPages((p) => [...p, page]);
     selectPage(page.id, "live");
@@ -874,7 +891,11 @@ export default function App() {
             </div>
           </div>
           <div className="verse-draft__actions">
-            <button type="button" className="btn btn--primary" onClick={addPage}>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => void addPage()}
+            >
               Add to page queue
             </button>
           </div>

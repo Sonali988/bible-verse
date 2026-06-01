@@ -32,3 +32,21 @@ export function verseBodyEdgePadding(
     paddingRight: h,
   };
 }
+
+/** Resolume combined title row — extra vertical inset for Devanagari matras. */
+export function resolumeTitleEdgePadding(
+  titleFontPxHi: number,
+  titleFontPxEn: number,
+): Pick<CSSProperties, "paddingTop" | "paddingBottom" | "paddingLeft" | "paddingRight"> {
+  const vHi = Math.max(8, Math.round(titleFontPxHi * 0.3));
+  const vEn = Math.max(6, Math.round(titleFontPxEn * 0.22));
+  const v = Math.max(vHi, vEn);
+  const maxPx = Math.max(titleFontPxHi, titleFontPxEn);
+  const h = Math.max(4, Math.round(maxPx * 0.05));
+  return {
+    paddingTop: v,
+    paddingBottom: v,
+    paddingLeft: h,
+    paddingRight: h,
+  };
+}
