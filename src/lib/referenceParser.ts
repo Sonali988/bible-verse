@@ -155,10 +155,26 @@ export function parseReference(input: string): VerseRef | null {
   return { bookId, chapter, verse };
 }
 
+function bookDisplayName(bookId: string): string {
+  return STANDARD_BOOKS.find((b) => b.id === bookId)?.name ?? `Book ${bookId}`;
+}
+
 export function formatReference(ref: VerseRef): string {
-  const name =
-    STANDARD_BOOKS.find((b) => b.id === ref.bookId)?.name ?? `Book ${ref.bookId}`;
-  return `${name} ${ref.chapter}:${ref.verse}`;
+  return `${bookDisplayName(ref.bookId)} ${ref.chapter}:${ref.verse}`;
+}
+
+/** e.g. `Luke 1:4–5` when start &lt; end; single verse matches {@link formatReference}. */
+export function formatReferenceRange(
+  bookId: string,
+  chapter: number,
+  verseStart: number,
+  verseEnd: number,
+): string {
+  const name = bookDisplayName(bookId);
+  const start = Math.min(verseStart, verseEnd);
+  const end = Math.max(verseStart, verseEnd);
+  if (end <= start) return `${name} ${chapter}:${start}`;
+  return `${name} ${chapter}:${start}–${end}`;
 }
 
 /** Hindi book name + chapter:verse, e.g. `गलातियों 3:5`. */

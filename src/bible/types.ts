@@ -4,6 +4,13 @@ export type VerseRef = {
   verse: number;
 };
 
+/** One verse fetched in the reference picker before adding to the queue. */
+export type VerseDraftItem = {
+  ref: VerseRef;
+  textEn: string;
+  textHi: string;
+};
+
 export type HighlightRange = { start: number; end: number };
 
 export type Rect = { x: number; y: number; width: number; height: number };
@@ -97,10 +104,10 @@ export function mergePageTypography(
 export const CARD_LAYOUT: LayoutSpec = {
   width: 1920,
   height: 1080,
-  titleHi: { x: 30, y: 130, width: 670, height: 62 },
-  bodyHi: { x: 30, y: 200, width: 670, height: 395 },
-  titleEn: { x: 30, y: 615, width: 670, height: 60 },
-  bodyEn: { x: 30, y: 675, width: 670, height: 370 },
+  titleHi: { x: 40, y: 130, width: 670, height: 62 },
+  bodyHi: { x: 40, y: 200, width: 670, height: 395 },
+  titleEn: { x: 40, y: 615, width: 670, height: 60 },
+  bodyEn: { x: 40, y: 675, width: 670, height: 370 },
 };
 
 /**

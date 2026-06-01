@@ -390,6 +390,25 @@ h2 {
   border-radius: 999px;
 }
 
+.verse-draft__entries {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.verse-draft__entry {
+  padding: 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+
+.verse-draft__entry-ref {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
 .verse-draft__body {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1385,6 +1404,15 @@ h2 {
   width: 5.5rem;
 }
 
+.reference-picker__field--verse-end {
+  flex: 0 0 5.5rem;
+  width: 5.5rem;
+}
+
+.reference-picker__verse-end-input {
+  text-align: center;
+}
+
 .reference-picker__select {
   width: 100%;
   font-size: 0.8rem;
@@ -1435,7 +1463,8 @@ h2 {
     max-width: 14rem;
   }
 
-  .reference-picker__field--chapter {
+  .reference-picker__field--chapter,
+  .reference-picker__field--verse-end {
     flex: 0 0 5rem;
     width: 5rem;
   }
@@ -1496,6 +1525,16 @@ h2 {
   color: #fff;
   background: var(--accent);
   border-color: var(--accent);
+}
+
+.verse-chip--in-range {
+  color: var(--text);
+  background: rgba(29, 90, 126, 0.14);
+  border-color: rgba(29, 90, 126, 0.4);
+}
+
+.reference-picker__range-hint {
+  margin: 0.35rem 0 0;
 }
 
 .verse-chip:disabled {

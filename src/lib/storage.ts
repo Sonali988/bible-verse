@@ -22,6 +22,35 @@ const K_SCHEMA_HI = "bvc:schemaHi";
 const K_VERSE_BLOCK_ORDER = "bvc:verseBlockOrder";
 const K_USE_BIBLE_COM_EN = "bvc:useBibleComEn";
 const K_USE_BIBLE_COM_HI = "bvc:useBibleComHi";
+const K_BG_DATA_URL = "bvc:bgDataUrl";
+
+/** Custom card background (data URL from file upload). */
+export function loadBackgroundDataUrl(): string | null {
+  try {
+    const raw = localStorage.getItem(K_BG_DATA_URL);
+    return raw && raw.trim().length > 0 ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+/** @returns false if the image could not be stored (e.g. localStorage quota). */
+export function saveBackgroundDataUrl(url: string | null): boolean {
+  try {
+    if (!url?.trim()) {
+      localStorage.removeItem(K_BG_DATA_URL);
+      return true;
+    }
+    localStorage.setItem(K_BG_DATA_URL, url);
+    return true;
+  } catch (e) {
+    console.warn(
+      "Could not save background image to browser storage (file may be too large).",
+      e,
+    );
+    return false;
+  }
+}
 
 function isValidLayout(value: unknown): value is LayoutSpec {
   if (!value || typeof value !== "object") return false;

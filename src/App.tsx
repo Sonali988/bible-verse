@@ -21,6 +21,7 @@ import {
   type LayoutSpec,
   type PageTypographyOverrides,
   type TypographySpec,
+  type VerseDraftItem,
   type VersePage,
   type VerseRef,
 } from "./bible/types";
@@ -40,7 +41,13 @@ import {
 import { savePng, zipBlobs } from "./export/downloadZip";
 import { formatReference } from "./lib/referenceParser";
 import { newId } from "./lib/id";
-import { loadPersisted, savePersisted, DEFAULT_VERSE_BLOCK_ORDER } from "./lib/storage";
+import {
+  loadBackgroundDataUrl,
+  loadPersisted,
+  saveBackgroundDataUrl,
+  savePersisted,
+  DEFAULT_VERSE_BLOCK_ORDER,
+} from "./lib/storage";
 import type { VerseBlockOrder } from "./lib/verseBlockOrder";
 import { computeAutoFitBodyFontOverrides } from "./lib/fitVerseBodyFont";
 import { VerseOrderControl } from "./components/VerseOrderControl";
@@ -137,17 +144,16 @@ export default function App() {
     JSON.stringify(persisted.schemaHi ?? defaultSqliteSchema(), null, 2),
   );
 
-  const [bgDataUrl, setBgDataUrl] = useState<string | null>(null);
+  const [bgDataUrl, setBgDataUrl] = useState<string | null>(() =>
+    loadBackgroundDataUrl(),
+  );
+  const [bgSaveWarning, setBgSaveWarning] = useState<string | null>(null);
   const [pages, setPages] = useState<VersePage[]>(persisted.pages ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(
     persisted.pages?.[0]?.id ?? null,
   );
 
-  const [draft, setDraft] = useState<{
-    ref: VerseRef;
-    textEn: string;
-    textHi: string;
-  } | null>(null);
+  const [draft, setDraft] = useState<VerseDraftItem[] | null>(null);
 
   const [exportPage, setExportPage] = useState<VersePage | null>(null);
   const [exportVariant, setExportVariant] = useState<ExportVariant>("live");
@@ -224,6 +230,16 @@ export default function App() {
       });
     }
   }, [useSample, useBibleComEn, useBibleComHi, sqliteEnActive, sqliteHiActive]);
+
+  useEffect(() => {
+    if (bgDataUrl && !saveBackgroundDataUrl(bgDataUrl)) {
+      setBgSaveWarning(
+        "Background image is too large to remember after refresh. Use a smaller file or replace public/bg.png.",
+      );
+    } else {
+      setBgSaveWarning(null);
+    }
+  }, [bgDataUrl]);
 
   useEffect(() => {
     savePersisted({
@@ -319,38 +335,42 @@ export default function App() {
     return () => ac.abort();
   }, [persisted.schemaEn, persisted.schemaHi]);
 
-  const onPreview = useCallback((ref: VerseRef, textEn: string, textHi: string) => {
-    setDraft({ ref, textEn, textHi });
+  const onPreview = useCallback((items: VerseDraftItem[]) => {
+    setDraft(items.length > 0 ? items : null);
   }, []);
 
   const addPage = async () => {
-    if (!draft) return;
+    if (!draft?.length) return;
     await document.fonts.ready;
-    const liveBodyFonts = computeAutoFitBodyFontOverrides(
-      draft,
-      cardLayout,
-      typography,
-      verseBlockOrder,
-    );
-    const resolumeBodyFonts = computeAutoFitBodyFontOverrides(
-      draft,
-      resolumeLayout,
-      resolumeTypography,
-      verseBlockOrder,
-      "resolume",
-    );
-    const page: VersePage = {
-      id: newId(),
-      ref: draft.ref,
-      textEn: draft.textEn,
-      textHi: draft.textHi,
-      highlightsEn: [],
-      highlightsHi: [],
-      typographySizes: liveBodyFonts,
-      resolumeTypographySizes: resolumeBodyFonts,
-    };
-    setPages((p) => [...p, page]);
-    selectPage(page.id, "live");
+    const newPages: VersePage[] = [];
+    for (const item of draft) {
+      const liveBodyFonts = computeAutoFitBodyFontOverrides(
+        item,
+        cardLayout,
+        typography,
+        verseBlockOrder,
+      );
+      const resolumeBodyFonts = computeAutoFitBodyFontOverrides(
+        item,
+        resolumeLayout,
+        resolumeTypography,
+        verseBlockOrder,
+        "resolume",
+      );
+      newPages.push({
+        id: newId(),
+        ref: item.ref,
+        textEn: item.textEn,
+        textHi: item.textHi,
+        highlightsEn: [],
+        highlightsHi: [],
+        typographySizes: liveBodyFonts,
+        resolumeTypographySizes: resolumeBodyFonts,
+      });
+    }
+    setPages((p) => [...p, ...newPages]);
+    selectPage(newPages[0]!.id, "live");
+    setDraft(null);
   };
 
   const applySchemaJson = () => {
@@ -380,6 +400,7 @@ export default function App() {
   };
 
   const onBgFile = (file: File | null) => {
+    setBgSaveWarning(null);
     if (!file) {
       setBgDataUrl(null);
       return;
@@ -389,7 +410,15 @@ export default function App() {
       return;
     }
     const r = new FileReader();
-    r.onload = () => setBgDataUrl(String(r.result));
+    r.onload = () => {
+      const dataUrl = String(r.result);
+      setBgDataUrl(dataUrl);
+      if (!saveBackgroundDataUrl(dataUrl)) {
+        setBgSaveWarning(
+          "Background image is too large to remember after refresh. Use a smaller file or replace public/bg.png.",
+        );
+      }
+    };
     r.onerror = () => {
       console.error("Could not read background image file");
       setBgDataUrl(null);
@@ -830,11 +859,12 @@ export default function App() {
           Background image
           <input type="file" accept="image/*" onChange={(e) => onBgFile(e.target.files?.[0] ?? null)} />
         </label>
+        {bgSaveWarning && <p className="warn">{bgSaveWarning}</p>}
         <p className="hint" style={{ marginTop: "0.35rem" }}>
-          With no upload, cards use the default background color (
-          <code>#554111</code> in <code>types.ts</code>). You can also replace{" "}
-          <code>public/bg.png</code> on disk if you prefer a raster default. Uploads must be a normal
-          browser image type (PNG, JPEG, WebP); HEIC often will not display.
+          Uploads are saved in this browser so they survive refresh. With no upload, cards use the
+          default background color (<code>#554111</code> in <code>types.ts</code>). Very large
+          images may exceed storage limits — use a compressed PNG/JPEG or replace{" "}
+          <code>public/bg.png</code> on disk. HEIC often will not display.
         </p>
         <label style={{ marginTop: "0.65rem" }}>
           English DB schema JSON
@@ -868,27 +898,41 @@ export default function App() {
         onPreview={onPreview}
       />
 
-      {draft && (
+      {draft && draft.length > 0 && (
         <section className="panel verse-draft" aria-label="Verse draft (read-only)">
           <div className="verse-draft__head">
             <div>
-              <h2 className="verse-draft__title">Verse draft</h2>
+              <h2 className="verse-draft__title">
+                {draft.length === 1 ? "Verse draft" : `Verse draft (${draft.length})`}
+              </h2>
               <p className="hint verse-draft__hint">
-                Review fetched text before adding to the queue. This section is not
-                editable.
+                Review fetched text before adding to the queue. Each verse becomes its
+                own card. This section is not editable.
               </p>
             </div>
             <span className="verse-draft__badge">Read-only</span>
           </div>
-          <div className="verse-draft__body">
-            <div className="verse-draft__col">
-              <span className="verse-draft__label">{LABEL_HI}</span>
-              <p className="verse-draft__text">{draft.textHi}</p>
-            </div>
-            <div className="verse-draft__col">
-              <span className="verse-draft__label">{LABEL_EN}</span>
-              <p className="verse-draft__text">{draft.textEn}</p>
-            </div>
+          <div className="verse-draft__entries">
+            {draft.map((item) => (
+              <article
+                key={`${item.ref.bookId}-${item.ref.chapter}-${item.ref.verse}`}
+                className="verse-draft__entry"
+              >
+                <h3 className="verse-draft__entry-ref">
+                  {formatReference(item.ref)}
+                </h3>
+                <div className="verse-draft__body">
+                  <div className="verse-draft__col">
+                    <span className="verse-draft__label">{LABEL_HI}</span>
+                    <p className="verse-draft__text">{item.textHi}</p>
+                  </div>
+                  <div className="verse-draft__col">
+                    <span className="verse-draft__label">{LABEL_EN}</span>
+                    <p className="verse-draft__text">{item.textEn}</p>
+                  </div>
+                </div>
+              </article>
+            ))}
           </div>
           <div className="verse-draft__actions">
             <button
@@ -896,7 +940,9 @@ export default function App() {
               className="btn btn--primary"
               onClick={() => void addPage()}
             >
-              Add to page queue
+              {draft.length === 1
+                ? "Add to page queue"
+                : `Add ${draft.length} cards to queue`}
             </button>
           </div>
         </section>

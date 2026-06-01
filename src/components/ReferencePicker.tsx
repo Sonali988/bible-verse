@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import type { BibleProvider } from "../bible/provider";
-import type { VerseRef } from "../bible/types";
+import type { VerseDraftItem, VerseRef } from "../bible/types";
 import {
   isNewTestamentBookId,
   partitionBooksByTestament,
 } from "../bible/books";
-import { formatReference } from "../lib/referenceParser";
+import { formatReference, formatReferenceRange } from "../lib/referenceParser";
+
+const MAX_VERSES_PER_FETCH = 50;
 
 type Props = {
   providerEn: BibleProvider;
   providerHi: BibleProvider;
-  onPreview: (ref: VerseRef, textEn: string, textHi: string) => void;
+  onPreview: (items: VerseDraftItem[]) => void;
 };
 
 export function ReferencePicker({
@@ -23,11 +25,17 @@ export function ReferencePicker({
   const [chapters, setChapters] = useState<number[]>([]);
   const [chapter, setChapter] = useState(1);
   const [verse, setVerse] = useState(1);
+  const [verseEnd, setVerseEnd] = useState(1);
   const [maxVerse, setMaxVerse] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [chapterOpen, setChapterOpen] = useState(false);
+  const [fetching, setFetching] = useState(false);
 
   const ready = providerEn.isReady() && providerHi.isReady();
+
+  const verseStart = Math.min(verse, verseEnd);
+  const verseStop = Math.max(verse, verseEnd);
+  const verseCount = verseStop - verseStart + 1;
 
   const verseNumbers = useMemo(
     () => Array.from({ length: maxVerse }, (_, i) => i + 1),
@@ -88,10 +96,6 @@ export function ReferencePicker({
   }, [bookId, providerEn, ready]);
 
   useEffect(() => {
-    setChapterOpen(false);
-  }, [bookId]);
-
-  useEffect(() => {
     if (!chapterOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setChapterOpen(false);
@@ -106,38 +110,72 @@ export function ReferencePicker({
     void (async () => {
       const mv = await providerEn.getMaxVerse(bookId, chapter);
       if (cancelled) return;
-      setMaxVerse(Math.max(1, mv));
-      setVerse((v) => Math.min(v, Math.max(1, mv)));
+      const max = Math.max(1, mv);
+      setMaxVerse(max);
+      setVerse((v) => {
+        const next = Math.min(Math.max(1, v), max);
+        setVerseEnd((e) => Math.min(Math.max(next, e), max));
+        return next;
+      });
     })();
     return () => {
       cancelled = true;
     };
   }, [bookId, chapter, providerEn, ready]);
 
-  const refObj: VerseRef | null = useMemo(() => {
+  const refLabel = useMemo(() => {
     if (!bookId) return null;
-    return { bookId, chapter, verse };
-  }, [bookId, chapter, verse]);
+    return formatReferenceRange(bookId, chapter, verse, verseEnd);
+  }, [bookId, chapter, verse, verseEnd]);
+
+  const selectVerseStart = (v: number) => {
+    setVerse(v);
+    setVerseEnd((e) => (v > e ? v : e));
+  };
+
+  const setVerseEndClamped = (raw: number) => {
+    if (!Number.isFinite(raw)) return;
+    const n = Math.round(raw);
+    setVerseEnd(Math.min(maxVerse, Math.max(verse, n)));
+  };
 
   const fetchPreview = async () => {
     setError(null);
-    if (!refObj || !ready) {
+    if (!bookId || !ready) {
       setError(
         "Enable Bible.com and/or load SQLite for each language, or turn on sample data.",
       );
       return;
     }
+    if (verseCount > MAX_VERSES_PER_FETCH) {
+      setError(`Select at most ${MAX_VERSES_PER_FETCH} verses at a time.`);
+      return;
+    }
+    setFetching(true);
     try {
-      const [textEn, textHi] = await Promise.all([
-        providerEn.getPassage(refObj),
-        providerHi.getPassage(refObj),
-      ]);
-      if (!textEn.trim() && !textHi.trim()) {
+      const verseList = Array.from(
+        { length: verseCount },
+        (_, i) => verseStart + i,
+      );
+      const items: VerseDraftItem[] = await Promise.all(
+        verseList.map(async (v) => {
+          const ref: VerseRef = { bookId, chapter, verse: v };
+          const [textEn, textHi] = await Promise.all([
+            providerEn.getPassage(ref),
+            providerHi.getPassage(ref),
+          ]);
+          return { ref, textEn, textHi };
+        }),
+      );
+      const anyText = items.some((it) => it.textEn.trim() || it.textHi.trim());
+      if (!anyText) {
         setError("No verse text found for this reference in one or both databases.");
       }
-      onPreview(refObj, textEn, textHi);
+      onPreview(items);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFetching(false);
     }
   };
 
@@ -155,7 +193,10 @@ export function ReferencePicker({
             value={isNewTestament ? "" : bookId}
             onChange={(e) => {
               const id = e.target.value;
-              if (id) setBookId(id);
+              if (id) {
+                setBookId(id);
+                setChapterOpen(true);
+              }
             }}
             disabled={!ready || oldTestament.length === 0}
           >
@@ -174,7 +215,10 @@ export function ReferencePicker({
             value={isNewTestament ? bookId : ""}
             onChange={(e) => {
               const id = e.target.value;
-              if (id) setBookId(id);
+              if (id) {
+                setBookId(id);
+                setChapterOpen(true);
+              }
             }}
             disabled={!ready || newTestament.length === 0}
           >
@@ -199,6 +243,20 @@ export function ReferencePicker({
             onClick={() => {
               if (ready && bookId) setChapterOpen(true);
             }}
+          />
+        </label>
+        <label className="reference-picker__field reference-picker__field--verse-end">
+          <span>Verse end</span>
+          <input
+            type="number"
+            className="reference-picker__select reference-picker__verse-end-input"
+            value={verseEnd}
+            min={verse}
+            max={maxVerse}
+            step={1}
+            disabled={!ready || !bookId}
+            aria-label={`Verse end, ${verse} through ${maxVerse}`}
+            onChange={(e) => setVerseEndClamped(Number(e.target.value))}
           />
         </label>
       </div>
@@ -257,38 +315,59 @@ export function ReferencePicker({
 
       <div className="reference-picker__verses">
         <span className="reference-picker__verses-label">Verse</span>
-        <div className="verse-chip-strip" role="group" aria-label="Select verse">
-          {verseNumbers.map((v) => (
-            <button
-              key={v}
-              type="button"
-              className={
-                v === verse ? "verse-chip verse-chip--active" : "verse-chip"
-              }
-              disabled={!ready}
-              aria-pressed={v === verse}
-              onClick={() => setVerse(v)}
-            >
-              {v}
-            </button>
-          ))}
+        <div
+          className="verse-chip-strip"
+          role="group"
+          aria-label="Select start verse"
+        >
+          {verseNumbers.map((v) => {
+            const inRange = v >= verseStart && v <= verseStop;
+            const isStart = v === verse;
+            return (
+              <button
+                key={v}
+                type="button"
+                className={
+                  isStart
+                    ? "verse-chip verse-chip--active"
+                    : inRange
+                      ? "verse-chip verse-chip--in-range"
+                      : "verse-chip"
+                }
+                disabled={!ready}
+                aria-pressed={isStart}
+                onClick={() => selectVerseStart(v)}
+              >
+                {v}
+              </button>
+            );
+          })}
         </div>
       </div>
+      {verseCount > 1 && (
+        <p className="hint reference-picker__range-hint">
+          {verseCount} verses — each becomes its own card in the queue.
+        </p>
+      )}
 
       {error && <p className="error">{error}</p>}
       <div className="reference-picker__actions">
-        {refObj && (
+        {refLabel && (
           <span className="chip chip--accent reference-picker__ref-chip">
-            {formatReference(refObj)}
+            {refLabel}
           </span>
         )}
         <button
           type="button"
           className="btn btn--primary reference-picker__fetch"
           onClick={() => void fetchPreview()}
-          disabled={!ready}
+          disabled={!ready || fetching}
         >
-          Fetch English + Hindi
+          {fetching
+            ? "Fetching…"
+            : verseCount > 1
+              ? `Fetch ${verseCount} verses`
+              : "Fetch English + Hindi"}
         </button>
       </div>
     </section>
