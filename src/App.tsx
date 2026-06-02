@@ -72,16 +72,44 @@ function datedZipFileName(suffix: string): string {
 }
 
 type ExportVariant = "live" | "resolume";
+type PreviewScrollTarget = ExportVariant | "both";
 
-function scrollPreviewCard(id: string, variant: ExportVariant): void {
+function previewCardElement(
+  id: string,
+  variant: ExportVariant,
+): HTMLElement | null {
   const elId =
     variant === "resolume"
       ? `preview-card-resolume-${id}`
       : `preview-card-${id}`;
-  document.getElementById(elId)?.scrollIntoView({
+  return document.getElementById(elId);
+}
+
+function scrollPreviewCardInStrip(id: string, variant: ExportVariant): void {
+  previewCardElement(id, variant)?.scrollIntoView({
+    behavior: "smooth",
+    inline: "center",
+    block: "nearest",
+  });
+}
+
+function scrollPreviewCard(id: string, variant: ExportVariant): void {
+  previewCardElement(id, variant)?.scrollIntoView({
     behavior: "smooth",
     inline: "nearest",
     block: "nearest",
+  });
+}
+
+/** Page queue: bring both preview strips into view and center the card in each. */
+function scrollBothPreviewCards(id: string): void {
+  document.querySelector(".preview-dual-stack")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+  requestAnimationFrame(() => {
+    scrollPreviewCardInStrip(id, "live");
+    scrollPreviewCardInStrip(id, "resolume");
   });
 }
 
@@ -175,11 +203,16 @@ export default function App() {
   const sidebarId = "app-sidebar-panel";
 
   const selectPage = useCallback(
-    (id: string, scrollTarget?: ExportVariant) => {
+    (id: string, scrollTarget?: PreviewScrollTarget) => {
       setSelectedId(id);
-      if (scrollTarget) {
-        requestAnimationFrame(() => scrollPreviewCard(id, scrollTarget));
-      }
+      if (!scrollTarget) return;
+      requestAnimationFrame(() => {
+        if (scrollTarget === "both") {
+          scrollBothPreviewCards(id);
+        } else {
+          scrollPreviewCard(id, scrollTarget);
+        }
+      });
     },
     [],
   );
@@ -952,7 +985,7 @@ export default function App() {
         pages={pages}
         selectedId={selectedId}
         selected={selected}
-        onSelect={(id) => selectPage(id, "live")}
+        onSelect={(id) => selectPage(id, "both")}
         onRemove={(id) => {
           setPages((xs) => xs.filter((x) => x.id !== id));
           if (selectedId === id) setSelectedId(null);

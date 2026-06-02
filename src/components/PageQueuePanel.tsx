@@ -60,7 +60,7 @@ export function PageQueuePanel({
               </button>
               <button
                 type="button"
-                className="btn btn--primary btn--sm"
+                className="btn btn--primary btn--sm page-queue-panel__export"
                 disabled={exportBusy}
                 onClick={onOpenExport}
               >

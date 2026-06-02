@@ -1698,6 +1698,12 @@ h2 {
   background: rgba(231, 76, 60, 0.1);
 }
 
+.page-queue-panel__export {
+  min-width: 6.5rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
