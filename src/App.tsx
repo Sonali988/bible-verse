@@ -869,9 +869,9 @@ export default function App() {
         </div>
         {!useSample && (useBibleComEn || useBibleComHi) && (
           <p className="hint" style={{ marginTop: "0.5rem" }}>
-            Bible.com uses the same Next.js endpoint as the website. Local dev proxies requests
-            through <code>/bible-com</code>. Uncheck a box to use the SQLite file for that language
-            instead (after loading a file above).
+            Bible.com uses <code>https://www.bible.com/_next/data/…json</code> verse endpoints.
+            Uncheck a box to use the SQLite file for that language instead (after loading a file
+            above).
           </p>
         )}
         {sqliteFileErr && <p className="error">{sqliteFileErr}</p>}
