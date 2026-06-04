@@ -183,7 +183,7 @@ export function ReferencePicker({
     <section className="panel panel--compact">
       <h2>Reference</h2>
       {!ready && (
-        <p className="warn">Load NKJV and Hindi SQLite files to enable lookup.</p>
+        <p className="warn">Load English and Hindi SQLite files to enable lookup.</p>
       )}
       <div className="reference-picker__controls">
         <label className="reference-picker__field reference-picker__field--book">

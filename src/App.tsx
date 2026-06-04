@@ -55,8 +55,14 @@ import {
   BUNDLED_SQLITE_URLS,
   fetchSqliteArrayBuffer,
 } from "./config/bundledBibles";
+import {
+  bundledEnglishSqliteUrl,
+  ENGLISH_SQLITE_VERSIONS,
+  englishSqliteVersion,
+  normalizeEnglishSqliteVersionId,
+  type EnglishSqliteVersionId,
+} from "./config/englishSqliteVersions";
 
-const LABEL_EN = "NKJV";
 const LABEL_HI = "HINOVBSI";
 
 function sanitizeFileName(s: string): string {
@@ -132,6 +138,11 @@ export default function App() {
   const [useBibleComHi, setUseBibleComHi] = useState(
     () => persisted.useBibleComHi ?? true,
   );
+  const [englishVersionId, setEnglishVersionId] = useState<EnglishSqliteVersionId>(
+    () =>
+      normalizeEnglishSqliteVersionId(persisted.englishSqliteVersionId),
+  );
+  const englishLabel = englishSqliteVersion(englishVersionId).label;
   const [sqliteEnActive, setSqliteEnActive] = useState(false);
   const [sqliteHiActive, setSqliteHiActive] = useState(false);
   const [schemaEn, setSchemaEn] = useState<SqliteSchemaConfig>(
@@ -141,9 +152,12 @@ export default function App() {
     persisted.schemaHi ?? defaultSqliteSchema(),
   );
 
-  const [providerEn, setProviderEn] = useState<BibleProvider>(
-    () => new StaticJsonProvider(LABEL_EN, "en"),
-  );
+  const [providerEn, setProviderEn] = useState<BibleProvider>(() => {
+    const label = englishSqliteVersion(
+      normalizeEnglishSqliteVersionId(persisted.englishSqliteVersionId),
+    ).label;
+    return new StaticJsonProvider(label, "en");
+  });
   const [providerHi, setProviderHi] = useState<BibleProvider>(
     () => new StaticJsonProvider(LABEL_HI, "hi"),
   );
@@ -224,7 +238,7 @@ export default function App() {
     if (!useSample) return;
     setProviderEn((prev) => {
       if (prev instanceof SqliteBibleProvider) prev.close();
-      return new StaticJsonProvider(LABEL_EN, "en");
+      return new StaticJsonProvider(englishLabel, "en");
     });
     setProviderHi((prev) => {
       if (prev instanceof SqliteBibleProvider) prev.close();
@@ -245,7 +259,7 @@ export default function App() {
     } else {
       setProviderEn((prev) => {
         if (prev instanceof StaticJsonProvider) return prev;
-        return new StaticJsonProvider(LABEL_EN, "en");
+        return new StaticJsonProvider(englishLabel, "en");
       });
     }
 
@@ -286,6 +300,7 @@ export default function App() {
       verseBlockOrder,
       useBibleComEn,
       useBibleComHi,
+      englishSqliteVersionId: englishVersionId,
     });
   }, [
     pages,
@@ -298,6 +313,7 @@ export default function App() {
     verseBlockOrder,
     useBibleComEn,
     useBibleComHi,
+    englishVersionId,
   ]);
 
   useEffect(() => {
@@ -306,67 +322,108 @@ export default function App() {
     }
   }, [pages, selectedId]);
 
-  /** Auto-load SQLite from `public/bibles/` when both default URLs return 200. */
+  /** Auto-load SQLite from `public/bibles/` for selected English version + Hindi. */
   useEffect(() => {
     const ac = new AbortController();
     const schemaEnBoot = persisted.schemaEn ?? defaultSqliteSchema();
     const schemaHiBoot = persisted.schemaHi ?? defaultSqliteSchema();
     setBundledStatus("loading");
     void (async () => {
+      const enUrl = bundledEnglishSqliteUrl(englishVersionId);
       const [bufEn, bufHi] = await Promise.all([
-        fetchSqliteArrayBuffer(BUNDLED_SQLITE_URLS.en, ac.signal),
+        fetchSqliteArrayBuffer(enUrl, ac.signal),
         fetchSqliteArrayBuffer(BUNDLED_SQLITE_URLS.hi, ac.signal),
       ]);
       if (ac.signal.aborted) return;
-      if (!bufEn || !bufHi) {
-        setBundledStatus("missing");
-        return;
-      }
-      try {
-        const pEn = new SqliteBibleProvider(LABEL_EN, schemaEnBoot);
-        const pHi = new SqliteBibleProvider(LABEL_HI, schemaHiBoot);
-        const [resolvedEn, resolvedHi] = await Promise.all([
-          pEn.loadArrayBuffer(bufEn),
-          pHi.loadArrayBuffer(bufHi),
-        ]);
-        if (ac.signal.aborted) {
-          pEn.close();
-          pHi.close();
-          return;
+
+      let loadedAny = false;
+      const notes: string[] = [];
+
+      if (bufEn) {
+        try {
+          sqliteEnProviderRef.current?.close();
+          const label = englishSqliteVersion(englishVersionId).label;
+          const pEn = new SqliteBibleProvider(label, schemaEnBoot);
+          const resolvedEn = await pEn.loadArrayBuffer(bufEn);
+          if (ac.signal.aborted) {
+            pEn.close();
+            return;
+          }
+          setSchemaEn(resolvedEn);
+          setSchemaEnJson(JSON.stringify(resolvedEn, null, 2));
+          sqliteEnProviderRef.current = pEn;
+          setSqliteEnActive(true);
+          if (!useBibleComEn) setProviderEn(pEn);
+          loadedAny = true;
+          if (JSON.stringify(resolvedEn) !== JSON.stringify(schemaEnBoot)) {
+            notes.push(
+              `English (${label}) table "${resolvedEn.verseTable}" auto-detected.`,
+            );
+          }
+        } catch (e) {
+          if (!ac.signal.aborted) {
+            setSqliteFileErr(
+              e instanceof Error ? e.message : String(e),
+            );
+          }
         }
-        setSchemaEn(resolvedEn);
-        setSchemaHi(resolvedHi);
-        setSchemaEnJson(JSON.stringify(resolvedEn, null, 2));
-        setSchemaHiJson(JSON.stringify(resolvedHi, null, 2));
-        sqliteEnProviderRef.current = pEn;
-        sqliteHiProviderRef.current = pHi;
-        setSqliteEnActive(true);
-        setSqliteHiActive(true);
-        if (!useBibleComEn) setProviderEn(pEn);
-        if (!useBibleComHi) setProviderHi(pHi);
+      }
+
+      if (bufHi) {
+        try {
+          const pHi = new SqliteBibleProvider(LABEL_HI, schemaHiBoot);
+          const resolvedHi = await pHi.loadArrayBuffer(bufHi);
+          if (ac.signal.aborted) {
+            pHi.close();
+            return;
+          }
+          setSchemaHi(resolvedHi);
+          setSchemaHiJson(JSON.stringify(resolvedHi, null, 2));
+          sqliteHiProviderRef.current = pHi;
+          setSqliteHiActive(true);
+          if (!useBibleComHi) setProviderHi(pHi);
+          loadedAny = true;
+          if (JSON.stringify(resolvedHi) !== JSON.stringify(schemaHiBoot)) {
+            notes.push(`Hindi table "${resolvedHi.verseTable}" auto-detected.`);
+          }
+        } catch (e) {
+          if (!ac.signal.aborted) {
+            setSqliteFileErr(
+              e instanceof Error ? e.message : String(e),
+            );
+          }
+        }
+      }
+
+      if (ac.signal.aborted) return;
+
+      if (!bufEn && !useBibleComEn && !useSample) {
+        sqliteEnProviderRef.current?.close();
+        setSqliteEnActive(false);
+        const v = englishSqliteVersion(englishVersionId);
+        setSqliteFileErr(
+          `Could not load ${v.label} from ${enUrl}. Add public/bibles/${v.bundledFile} or use the file picker.`,
+        );
+      }
+
+      if (loadedAny) {
         setUseSample(false);
         setBundledStatus("loaded");
-        setSqliteFileErr(null);
-        const notes: string[] = [];
-        if (JSON.stringify(resolvedEn) !== JSON.stringify(schemaEnBoot)) {
-          notes.push(`English table "${resolvedEn.verseTable}" auto-detected.`);
-        }
-        if (JSON.stringify(resolvedHi) !== JSON.stringify(schemaHiBoot)) {
-          notes.push(`Hindi table "${resolvedHi.verseTable}" auto-detected.`);
-        }
+        if (bufEn) setSqliteFileErr(null);
         setSqliteLoadNote(notes.length ? notes.join(" ") : null);
-      } catch (e) {
-        if (!ac.signal.aborted) {
-          setBundledStatus("missing");
-          setSqliteLoadNote(null);
-          setSqliteFileErr(
-            e instanceof Error ? e.message : String(e),
-          );
-        }
+      } else {
+        setBundledStatus("missing");
+        setSqliteLoadNote(null);
       }
     })();
     return () => ac.abort();
-  }, [persisted.schemaEn, persisted.schemaHi]);
+  }, [
+    persisted.schemaEn,
+    persisted.schemaHi,
+    englishVersionId,
+    useBibleComEn,
+    useBibleComHi,
+  ]);
 
   const onPreview = useCallback((items: VerseDraftItem[]) => {
     setDraft(items.length > 0 ? items : null);
@@ -468,7 +525,7 @@ export default function App() {
     setSqliteLoadNote(null);
     try {
       const configured = lang === "en" ? schemaEn : schemaHi;
-      const label = lang === "en" ? LABEL_EN : LABEL_HI;
+      const label = lang === "en" ? englishLabel : LABEL_HI;
       const prov = new SqliteBibleProvider(label, configured);
       const resolved = await prov.loadFile(file);
       if (lang === "en") {
@@ -795,17 +852,24 @@ export default function App() {
         )}
         {bundledStatus === "loaded" && (
           <p className="muted">
-            Loaded bundled files: <code>{BUNDLED_SQLITE_URLS.en}</code> and{" "}
-            <code>{BUNDLED_SQLITE_URLS.hi}</code> (from <code>public/bibles/</code> in the
-            repo).
+            Loaded bundled: English <code>{englishLabel}</code> (
+            <code>{bundledEnglishSqliteUrl(englishVersionId)}</code>
+            {sqliteHiActive ? (
+              <>
+                ), Hindi <code>{BUNDLED_SQLITE_URLS.hi}</code>
+              </>
+            ) : (
+              <> — Hindi file not found at default URL</>
+            )}
+            .
           </p>
         )}
         {bundledStatus === "missing" && (
           <p className="hint">
-            No bundled pair found at the default URLs (or fetch failed). Auto-load needs{" "}
-            <strong>both</strong> SQLite files under <code>public/bibles/</code> (see{" "}
-            <code>public/bibles/README.txt</code>). You can still load databases with the manual
-            file pickers below. If only one language file is present, add the other or use pickers.
+            No bundled SQLite found for the selected English version (
+            <code>{englishSqliteVersion(englishVersionId).bundledFile}</code>) or Hindi (
+            <code>bsiov.sqlite</code>). Add files under <code>public/bibles/</code> or use the file
+            pickers below.
           </p>
         )}
         <label className="btn-row" style={{ flexDirection: "row", alignItems: "center" }}>
@@ -826,10 +890,33 @@ export default function App() {
         <div className="grid2" style={{ marginTop: "0.75rem" }}>
           <div className="bible-source-column">
             <label>
+              English translation (SQLite)
+              <select
+                value={englishVersionId}
+                disabled={useSample || useBibleComEn}
+                onChange={(e) =>
+                  setEnglishVersionId(
+                    normalizeEnglishSqliteVersionId(e.target.value),
+                  )
+                }
+              >
+                {ENGLISH_SQLITE_VERSIONS.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="hint" style={{ marginTop: "0.35rem" }}>
+              Loads <code>public/bibles/{englishSqliteVersion(englishVersionId).bundledFile}</code>{" "}
+              when present. Default: NKJV.
+            </p>
+            <label>
               English SQLite (.sqlite) — optional override
               <input
                 type="file"
                 accept=".sqlite,.db,application/x-sqlite3,*/*"
+                disabled={useSample || useBibleComEn}
                 onChange={(e) =>
                   void loadSqlite(e.target.files?.[0] ?? null, "en")
                 }
@@ -960,7 +1047,7 @@ export default function App() {
                     <p className="verse-draft__text">{item.textHi}</p>
                   </div>
                   <div className="verse-draft__col">
-                    <span className="verse-draft__label">{LABEL_EN}</span>
+                    <span className="verse-draft__label">{englishLabel}</span>
                     <p className="verse-draft__text">{item.textEn}</p>
                   </div>
                 </div>
@@ -997,7 +1084,7 @@ export default function App() {
         exportBusy={exportBusy}
         onOpenExport={() => setExportModalOpen(true)}
         onUpdateHighlights={updateSelectedHighlights}
-        labelEn={LABEL_EN}
+        labelEn={englishLabel}
         labelHi={LABEL_HI}
       />
       </div>
@@ -1072,7 +1159,7 @@ export default function App() {
                         typography={mergePageTypography(typography, p)}
                         page={p}
                         backgroundDataUrl={cardBackgroundUrl}
-                        versionLabelEn={LABEL_EN}
+                        versionLabelEn={englishLabel}
                         versionLabelHi={LABEL_HI}
                         verseBlockOrder={verseBlockOrder}
                       />
@@ -1149,7 +1236,7 @@ export default function App() {
                         )}
                         page={p}
                         backgroundDataUrl={cardBackgroundUrl}
-                        versionLabelEn={LABEL_EN}
+                        versionLabelEn={englishLabel}
                         versionLabelHi={LABEL_HI}
                         verseBlockOrder={verseBlockOrder}
                       />
@@ -1290,7 +1377,7 @@ export default function App() {
                   )}
                   page={cardPage}
                   backgroundDataUrl={cardBackgroundUrl}
-                  versionLabelEn={LABEL_EN}
+                  versionLabelEn={englishLabel}
                   versionLabelHi={LABEL_HI}
                   verseBlockOrder={verseBlockOrder}
                 />
@@ -1318,7 +1405,7 @@ export default function App() {
                   )}
                   page={cardPage}
                   backgroundDataUrl={cardBackgroundUrl}
-                  versionLabelEn={LABEL_EN}
+                  versionLabelEn={englishLabel}
                   versionLabelHi={LABEL_HI}
                   verseBlockOrder={verseBlockOrder}
                 />

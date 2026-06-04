@@ -11,6 +11,10 @@ import {
 } from "./verseBlockOrder";
 import { normalizeVerseRef } from "./referenceParser";
 import type { SqliteSchemaConfig } from "../bible/sqlite/schemaConfig";
+import {
+  normalizeEnglishSqliteVersionId,
+  type EnglishSqliteVersionId,
+} from "../config/englishSqliteVersions";
 
 const K_PAGES = "bvc:pages";
 const K_CARD_LAYOUT = "bvc:cardLayout";
@@ -22,6 +26,7 @@ const K_SCHEMA_HI = "bvc:schemaHi";
 const K_VERSE_BLOCK_ORDER = "bvc:verseBlockOrder";
 const K_USE_BIBLE_COM_EN = "bvc:useBibleComEn";
 const K_USE_BIBLE_COM_HI = "bvc:useBibleComHi";
+const K_ENGLISH_SQLITE_VERSION = "bvc:englishSqliteVersionId";
 const K_BG_DATA_URL = "bvc:bgDataUrl";
 
 /** Custom card background (data URL from file upload). */
@@ -75,6 +80,7 @@ export type PersistedState = {
   verseBlockOrder: VerseBlockOrder;
   useBibleComEn: boolean;
   useBibleComHi: boolean;
+  englishSqliteVersionId: EnglishSqliteVersionId;
 };
 
 export function loadPersisted(): Partial<PersistedState> {
@@ -124,6 +130,11 @@ export function loadPersisted(): Partial<PersistedState> {
       useBibleComEnRaw != null ? JSON.parse(useBibleComEnRaw) === true : undefined;
     const useBibleComHi =
       useBibleComHiRaw != null ? JSON.parse(useBibleComHiRaw) === true : undefined;
+    const englishSqliteVersionRaw = localStorage.getItem(K_ENGLISH_SQLITE_VERSION);
+    const englishSqliteVersionId =
+      englishSqliteVersionRaw != null
+        ? normalizeEnglishSqliteVersionId(englishSqliteVersionRaw)
+        : undefined;
 
     return {
       pages: pages ?? undefined,
@@ -136,6 +147,7 @@ export function loadPersisted(): Partial<PersistedState> {
       verseBlockOrder,
       useBibleComEn,
       useBibleComHi,
+      englishSqliteVersionId,
     };
   } catch {
     return {};
@@ -153,6 +165,10 @@ export function savePersisted(state: PersistedState): void {
   localStorage.setItem(K_VERSE_BLOCK_ORDER, JSON.stringify(state.verseBlockOrder));
   localStorage.setItem(K_USE_BIBLE_COM_EN, JSON.stringify(state.useBibleComEn));
   localStorage.setItem(K_USE_BIBLE_COM_HI, JSON.stringify(state.useBibleComHi));
+  localStorage.setItem(
+    K_ENGLISH_SQLITE_VERSION,
+    state.englishSqliteVersionId,
+  );
 }
 
 export { DEFAULT_VERSE_BLOCK_ORDER };

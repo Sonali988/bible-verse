@@ -1,21 +1,20 @@
-/**
- * Default paths point at `public/bibles/` (served under Vite `import.meta.env.BASE_URL`).
- * Override with `.env`: VITE_BUNDLED_EN_SQLITE_URL, VITE_BUNDLED_HI_SQLITE_URL
- */
-function defaultBundledSqlitePath(file: "nkjv.sqlite" | "bsiov.sqlite"): string {
+import {
+  bundledEnglishSqliteUrl,
+  DEFAULT_ENGLISH_SQLITE_VERSION_ID,
+} from "./englishSqliteVersions";
+
+function defaultBundledHiPath(): string {
   const base = import.meta.env.BASE_URL || "/";
   const pathBase = base.startsWith("/") ? base : `/${base}`;
   const withSlash = pathBase.endsWith("/") ? pathBase : `${pathBase}/`;
-  return `${withSlash}bibles/${file}`.replace(/([^:]\/)\/+/g, "$1");
+  return `${withSlash}bibles/bsiov.sqlite`.replace(/([^:]\/)\/+/g, "$1");
 }
 
+/** Default English bundled URL (NKJV). Prefer `bundledEnglishSqliteUrl(id)`. */
 export const BUNDLED_SQLITE_URLS = {
-  en:
-    import.meta.env.VITE_BUNDLED_EN_SQLITE_URL ??
-    defaultBundledSqlitePath("nkjv.sqlite"),
+  en: bundledEnglishSqliteUrl(DEFAULT_ENGLISH_SQLITE_VERSION_ID),
   hi:
-    import.meta.env.VITE_BUNDLED_HI_SQLITE_URL ??
-    defaultBundledSqlitePath("bsiov.sqlite"),
+    import.meta.env.VITE_BUNDLED_HI_SQLITE_URL ?? defaultBundledHiPath(),
 } as const;
 
 export async function fetchSqliteArrayBuffer(
