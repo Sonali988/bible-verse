@@ -19,6 +19,11 @@ export async function prefetchFontEmbedCss(node: HTMLElement): Promise<string> {
   return getFontEmbedCSS(node, { preferredFontFormat: RASTER_OPTIONS.preferredFontFormat });
 }
 
+/** Forces layout so DOM updates are visible before rasterising. */
+export function forceLayout(node: HTMLElement): void {
+  void node.offsetWidth;
+}
+
 /** Ensures background `<img>` elements are decoded before rasterising. */
 export async function waitForImagesIn(node: HTMLElement): Promise<void> {
   const imgs = [...node.querySelectorAll("img")];

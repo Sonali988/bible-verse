@@ -1,5 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { VersePage } from "../bible/types";
+import {
+  exportProgressLabel,
+  exportProgressPercent,
+  formatExportDuration,
+} from "../export/exportProgress";
+import { exportProgressStore } from "../export/exportProgressStore";
 import { formatReference } from "../lib/referenceParser";
 
 export type ExportVariant = "live" | "resolume";
@@ -24,6 +30,11 @@ export function ExportModal({
   onDownloadZip,
 }: Props) {
   const [pageIds, setPageIds] = useState<Set<string>>(() => new Set());
+  const [tick, setTick] = useState(0);
+  const exportProgress = useSyncExternalStore(
+    exportProgressStore.subscribe,
+    exportProgressStore.getSnapshot,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -45,6 +56,19 @@ export function ExportModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, exportBusy, onClose]);
 
+  useEffect(() => {
+    if (
+      !open ||
+      !exportProgress ||
+      exportProgress.phase === "complete" ||
+      exportProgress.phase === "error"
+    ) {
+      return;
+    }
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [open, exportProgress]);
+
   const selectedCount = useMemo(
     () => pages.filter((p) => pageIds.has(p.id)).length,
     [pages, pageIds],
@@ -64,8 +88,22 @@ export function ExportModal({
   const ids = [...pageIds];
   const canExport = selectedCount > 0 && !exportBusy;
 
+  const progressPercent = exportProgress
+    ? exportProgressPercent(exportProgress)
+    : 0;
+  const liveElapsedMs = exportProgress
+    ? Math.max(0, performance.now() - exportProgress.startedAt)
+    : 0;
+  void tick;
+
   return (
-    <div className="modal-overlay" role="presentation" onClick={onClose}>
+    <div
+      className="modal-overlay"
+      role="presentation"
+      onClick={() => {
+        if (!exportBusy) onClose();
+      }}
+    >
       <div
         className="modal panel export-modal"
         role="dialog"
@@ -179,7 +217,64 @@ export function ExportModal({
           </>
         )}
 
-        {exportBusy && <p className="muted export-modal__busy">Rendering…</p>}
+        {exportProgress && (
+          <div
+            className={
+              exportProgress.phase === "complete"
+                ? "export-modal__progress export-modal__progress--complete"
+                : exportProgress.phase === "error"
+                  ? "export-modal__progress export-modal__progress--error"
+                  : "export-modal__progress"
+            }
+            role="status"
+            aria-live="polite"
+          >
+            <div className="export-modal__progress-head">
+              <span className="export-modal__progress-label">
+                {exportProgressLabel(exportProgress)}
+              </span>
+              {exportProgress.phase === "rendering" && (
+                <span className="export-modal__progress-count">
+                  {exportProgress.current}/{exportProgress.total}
+                </span>
+              )}
+            </div>
+            <div
+              className="export-modal__progress-track"
+              aria-hidden
+            >
+              <div
+                className={
+                  exportProgress.phase === "preparing"
+                    ? "export-modal__progress-bar export-modal__progress-bar--indeterminate"
+                    : "export-modal__progress-bar"
+                }
+                style={
+                  exportProgress.phase === "preparing"
+                    ? undefined
+                    : { width: `${progressPercent}%` }
+                }
+              />
+            </div>
+            <div className="export-modal__progress-meta">
+              <span>
+                Elapsed {formatExportDuration(liveElapsedMs)}
+              </span>
+              {exportProgress.etaMs != null &&
+                exportProgress.phase !== "complete" &&
+                exportProgress.phase !== "error" && (
+                  <span>
+                    {exportProgress.phase === "zipping"
+                      ? `About ${formatExportDuration(exportProgress.etaMs)} left`
+                      : `~${formatExportDuration(exportProgress.etaMs)} remaining`}
+                  </span>
+                )}
+              {exportProgress.phase === "complete" && (
+                <span className="export-modal__progress-done">Done</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

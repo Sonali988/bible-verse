@@ -130,14 +130,13 @@ export function ReferencePicker({
 
   const selectVerseStart = (v: number) => {
     setVerse(v);
-    setVerseEnd((e) => (v > e ? v : e));
+    setVerseEnd(v);
   };
 
-  const setVerseEndClamped = (raw: number) => {
-    if (!Number.isFinite(raw)) return;
-    const n = Math.round(raw);
-    setVerseEnd(Math.min(maxVerse, Math.max(verse, n)));
-  };
+  const verseEndOptions = useMemo(
+    () => verseNumbers.filter((v) => v >= verse),
+    [verseNumbers, verse],
+  );
 
   const fetchPreview = async () => {
     setError(null);
@@ -247,17 +246,19 @@ export function ReferencePicker({
         </label>
         <label className="reference-picker__field reference-picker__field--verse-end">
           <span>Verse end</span>
-          <input
-            type="number"
+          <select
             className="reference-picker__select reference-picker__verse-end-input"
             value={verseEnd}
-            min={verse}
-            max={maxVerse}
-            step={1}
             disabled={!ready || !bookId}
             aria-label={`Verse end, ${verse} through ${maxVerse}`}
-            onChange={(e) => setVerseEndClamped(Number(e.target.value))}
-          />
+            onChange={(e) => setVerseEnd(Number(e.target.value))}
+          >
+            {verseEndOptions.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
 

@@ -77,6 +77,10 @@ export type VersePage = {
   ref: VerseRef;
   textEn: string;
   textHi: string;
+  /** English version label frozen when the card was created. */
+  versionLabelEn?: string;
+  /** Hindi version label frozen when the card was created. */
+  versionLabelHi?: string;
   highlightsEn: HighlightRange[];
   highlightsHi: HighlightRange[];
   /** Live preview: per-card typography overrides (not shared with Resolume). */

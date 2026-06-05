@@ -1,19 +1,18 @@
-import JSZip from "jszip";
 import { saveAs } from "file-saver";
 
 export async function zipBlobs(
   entries: { name: string; blob: Blob }[],
   zipName: string,
 ): Promise<void> {
-  const zip = new JSZip();
-  for (const e of entries) {
-    zip.file(e.name, e.blob);
-  }
-  const out = await zip.generateAsync({
-    type: "blob",
-    compression: "STORE",
-  });
-  saveAs(out, zipName);
+  const { zipSync } = await import("fflate");
+  const files: Record<string, Uint8Array> = {};
+  await Promise.all(
+    entries.map(async (e) => {
+      files[e.name] = new Uint8Array(await e.blob.arrayBuffer());
+    }),
+  );
+  const out = zipSync(files);
+  saveAs(new Blob([out], { type: "application/zip" }), zipName);
 }
 
 export function savePng(blob: Blob, filename: string): void {

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import type { BibleProvider } from "./bible/provider";
 import { SqliteBibleProvider } from "./bible/sqlite/SqliteBibleProvider";
 import {
@@ -33,12 +32,15 @@ import { ResolumeVerseCard } from "./components/ResolumeVerseCard";
 import { DesignToolbar } from "./components/DesignToolbar";
 import { CardPreviewTypographyControls } from "./components/CardPreviewTypographyControls";
 import { CollapsiblePanel } from "./components/CollapsiblePanel";
-import {
-  prefetchFontEmbedCss,
-  renderNodeToPng,
-  waitForImagesIn,
-} from "./export/renderPng";
+import { capturePngBlob, prepareExportBatch } from "./export/batchExport";
 import { savePng, zipBlobs } from "./export/downloadZip";
+import { ExportRasterHost } from "./export/ExportRasterHost";
+import {
+  createExportProgressTracker,
+  type ExportFormat,
+} from "./export/exportProgress";
+import { exportProgressStore } from "./export/exportProgressStore";
+import type { ExportVariant } from "./export/exportVariant";
 import { formatReference } from "./lib/referenceParser";
 import { newId } from "./lib/id";
 import {
@@ -77,7 +79,6 @@ function datedZipFileName(suffix: string): string {
   return `${yyyy}-${mm}-${dd}-${suffix}.zip`;
 }
 
-type ExportVariant = "live" | "resolume";
 type PreviewScrollTarget = ExportVariant | "both";
 
 function previewCardElement(
@@ -121,12 +122,6 @@ function scrollBothPreviewCards(id: string): void {
 
 function exportPngFileName(ref: VerseRef, variant: ExportVariant): string {
   return `${sanitizeFileName(formatReference(ref))}-${variant}.png`;
-}
-
-async function nextFrames(n: number): Promise<void> {
-  for (let i = 0; i < n; i++) {
-    await new Promise<void>((r) => requestAnimationFrame(() => r()));
-  }
 }
 
 export default function App() {
@@ -197,8 +192,6 @@ export default function App() {
 
   const [draft, setDraft] = useState<VerseDraftItem[] | null>(null);
 
-  const [exportPage, setExportPage] = useState<VersePage | null>(null);
-  const [exportVariant, setExportVariant] = useState<ExportVariant>("live");
   const [exportBusy, setExportBusy] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [parseErr, setParseErr] = useState<string | null>(null);
@@ -210,8 +203,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editRailOpen, setEditRailOpen] = useState(false);
   const [workflowVariant, setWorkflowVariant] = useState<ExportVariant>("live");
-  const exportRef = useRef<HTMLDivElement>(null);
-  const exportResolumeRef = useRef<HTMLDivElement>(null);
+  const exportHostRef = useRef<ExportRasterHost | null>(null);
   const sqliteEnProviderRef = useRef<SqliteBibleProvider | null>(null);
   const sqliteHiProviderRef = useRef<SqliteBibleProvider | null>(null);
   const sidebarId = "app-sidebar-panel";
@@ -452,6 +444,8 @@ export default function App() {
         ref: item.ref,
         textEn: item.textEn,
         textHi: item.textHi,
+        versionLabelEn: providerEn.versionLabel,
+        versionLabelHi: providerHi.versionLabel,
         highlightsEn: [],
         highlightsHi: [],
         typographySizes: liveBodyFonts,
@@ -555,75 +549,40 @@ export default function App() {
     }
   };
 
-  const cardPage = exportPage ?? selected ?? pages[0] ?? null;
-
-  const exportNodeFor = (variant: ExportVariant) =>
-    variant === "live" ? exportRef.current : exportResolumeRef.current;
-
-  const measureExportNode = (variant: ExportVariant) => {
-    const layout = variant === "live" ? cardLayout : resolumeLayout;
-    const node = exportNodeFor(variant);
-    if (!node) throw new Error("Export node missing");
-    const ow = Math.round(node.offsetWidth);
-    const oh = Math.round(node.offsetHeight);
-    return {
-      node,
-      size: {
-        width: ow > 0 ? ow : layout.width,
-        height: oh > 0 ? oh : layout.height,
-      },
-    };
-  };
-
-  const capturePngBlob = async (
-    page: VersePage,
-    variant: ExportVariant,
-    fontEmbedCSS: string,
-  ): Promise<Blob> => {
-    flushSync(() => {
-      setExportPage(page);
-      setExportVariant(variant);
-    });
-    await nextFrames(1);
-    const { node, size } = measureExportNode(variant);
-    await waitForImagesIn(node);
-    return renderNodeToPng(node, size, { fontEmbedCSS });
-  };
-
-  const prepareExportBatch = async (
-    variant: ExportVariant,
-    firstPage: VersePage,
-  ): Promise<string> => {
-    flushSync(() => {
-      setExportVariant(variant);
-      setExportPage(firstPage);
-    });
-    await document.fonts.ready;
-    await nextFrames(1);
-    const { node } = measureExportNode(variant);
-    await waitForImagesIn(node);
-    return prefetchFontEmbedCss(node);
+  const clearExportProgressSoon = () => {
+    window.setTimeout(() => exportProgressStore.setImmediate(null), 5000);
   };
 
   const runExportBatch = async (
     variant: ExportVariant,
     list: VersePage[],
+    format: ExportFormat,
     onBlob: (page: VersePage, blob: Blob) => void | Promise<void>,
   ) => {
-    flushSync(() => {
-      setExportVariant(variant);
-      setExportBusy(true);
-    });
+    const host = exportHostRef.current;
+    if (!host) throw new Error("Export host missing");
+    const tracker = createExportProgressTracker(list.length, format, variant);
+    setExportBusy(true);
+    exportProgressStore.setImmediate(tracker.preparing());
+    let completed = 0;
     try {
-      const fontEmbedCSS = await prepareExportBatch(variant, list[0]!);
-      for (const p of list) {
-        const blob = await capturePngBlob(p, variant, fontEmbedCSS);
+      const ctx = await prepareExportBatch(host, variant, list[0]!);
+      for (let i = 0; i < list.length; i++) {
+        const p = list[i]!;
+        exportProgressStore.set(tracker.rendering(i, formatReference(p.ref)));
+        const t0 = performance.now();
+        const blob = await capturePngBlob(host, p, variant, ctx);
+        tracker.recordRender(performance.now() - t0);
         await onBlob(p, blob);
+        completed = i + 1;
       }
-    } finally {
-      setExportPage(null);
-      setExportVariant("live");
+      return tracker;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      exportProgressStore.setImmediate(tracker.error(message, completed));
       setExportBusy(false);
+      clearExportProgressSoon();
+      throw e;
     }
   };
 
@@ -633,25 +592,38 @@ export default function App() {
   const downloadPng = async (variant: ExportVariant, pageIds: string[]) => {
     const list = pagesByIds(pageIds);
     if (list.length === 0) return;
-    await runExportBatch(variant, list, (p, blob) => {
-      savePng(blob, exportPngFileName(p.ref, variant));
-    });
+    try {
+      const tracker = await runExportBatch(variant, list, "png", (p, blob) => {
+        savePng(blob, exportPngFileName(p.ref, variant));
+      });
+      exportProgressStore.setImmediate(tracker.complete());
+    } finally {
+      setExportBusy(false);
+      clearExportProgressSoon();
+    }
   };
 
   const downloadZip = async (variant: ExportVariant, pageIds: string[]) => {
     const list = pagesByIds(pageIds);
     if (list.length === 0) return;
     const entries: { name: string; blob: Blob }[] = [];
-    await runExportBatch(variant, list, (p, blob) => {
-      entries.push({
-        name: exportPngFileName(p.ref, variant),
-        blob,
+    try {
+      const tracker = await runExportBatch(variant, list, "zip", (p, blob) => {
+        entries.push({
+          name: exportPngFileName(p.ref, variant),
+          blob,
+        });
       });
-    });
-    await zipBlobs(
-      entries,
-      datedZipFileName(variant === "live" ? "live" : "resolume"),
-    );
+      exportProgressStore.setImmediate(tracker.zipping());
+      await zipBlobs(
+        entries,
+        datedZipFileName(variant === "live" ? "live" : "resolume"),
+      );
+      exportProgressStore.setImmediate(tracker.complete());
+    } finally {
+      setExportBusy(false);
+      clearExportProgressSoon();
+    }
   };
 
   const updateSelectedHighlights = (
@@ -669,6 +641,38 @@ export default function App() {
             highlightsHi: lang === "hi" ? ranges : p.highlightsHi,
           },
       ),
+    );
+  };
+
+  const updateSelectedText = (lang: "en" | "hi", text: string) => {
+    if (!selected) return;
+    setPages((list) =>
+      list.map((p) => {
+        if (p.id !== selected.id) return p;
+        const updated = {
+          ...p,
+          textEn: lang === "en" ? text : p.textEn,
+          textHi: lang === "hi" ? text : p.textHi,
+          highlightsEn: lang === "en" ? [] : p.highlightsEn,
+          highlightsHi: lang === "hi" ? [] : p.highlightsHi,
+        };
+        return {
+          ...updated,
+          typographySizes: computeAutoFitBodyFontOverrides(
+            updated,
+            cardLayout,
+            typography,
+            verseBlockOrder,
+          ),
+          resolumeTypographySizes: computeAutoFitBodyFontOverrides(
+            updated,
+            resolumeLayout,
+            resolumeTypography,
+            verseBlockOrder,
+            "resolume",
+          ),
+        };
+      }),
     );
   };
 
@@ -760,6 +764,37 @@ export default function App() {
 
   const cardBackgroundUrl =
     bgDataUrl && bgDataUrl.trim().length > 0 ? bgDataUrl : null;
+
+  useEffect(() => {
+    const host = new ExportRasterHost();
+    host.mount(document.body);
+    exportHostRef.current = host;
+    return () => {
+      host.destroy();
+      exportHostRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    exportHostRef.current?.setProps({
+      cardLayout,
+      resolumeLayout,
+      typography,
+      resolumeTypography,
+      backgroundDataUrl: cardBackgroundUrl,
+      englishLabel,
+      labelHi: LABEL_HI,
+      verseBlockOrder,
+    });
+  }, [
+    cardLayout,
+    resolumeLayout,
+    typography,
+    resolumeTypography,
+    cardBackgroundUrl,
+    englishLabel,
+    verseBlockOrder,
+  ]);
 
   const selectedLiveTypography = useMemo(
     () =>
@@ -1084,6 +1119,7 @@ export default function App() {
         exportBusy={exportBusy}
         onOpenExport={() => setExportModalOpen(true)}
         onUpdateHighlights={updateSelectedHighlights}
+        onUpdateText={updateSelectedText}
         labelEn={englishLabel}
         labelHi={LABEL_HI}
       />
@@ -1159,8 +1195,8 @@ export default function App() {
                         typography={mergePageTypography(typography, p)}
                         page={p}
                         backgroundDataUrl={cardBackgroundUrl}
-                        versionLabelEn={englishLabel}
-                        versionLabelHi={LABEL_HI}
+                        versionLabelEn={p.versionLabelEn ?? englishLabel}
+                        versionLabelHi={p.versionLabelHi ?? LABEL_HI}
                         verseBlockOrder={verseBlockOrder}
                       />
                     </div>
@@ -1236,8 +1272,8 @@ export default function App() {
                         )}
                         page={p}
                         backgroundDataUrl={cardBackgroundUrl}
-                        versionLabelEn={englishLabel}
-                        versionLabelHi={LABEL_HI}
+                        versionLabelEn={p.versionLabelEn ?? englishLabel}
+                        versionLabelHi={p.versionLabelHi ?? LABEL_HI}
                         verseBlockOrder={verseBlockOrder}
                       />
                     </div>
@@ -1353,67 +1389,6 @@ export default function App() {
         onDownloadPng={downloadPng}
         onDownloadZip={downloadZip}
       />
-
-      {cardPage && (
-        <>
-          {(!exportBusy || exportVariant === "live") && (
-            <div className="export-hidden-host" aria-hidden>
-              <div
-                ref={exportRef}
-                className="export-card-snapshot"
-                style={{
-                  width: cardLayout.width,
-                  height: cardLayout.height,
-                  boxSizing: "border-box",
-                  overflow: "hidden",
-                }}
-              >
-                <VerseCard
-                  layout={cardLayout}
-                  typography={mergePageTypography(
-                    typography,
-                    cardPage,
-                    "typographySizes",
-                  )}
-                  page={cardPage}
-                  backgroundDataUrl={cardBackgroundUrl}
-                  versionLabelEn={englishLabel}
-                  versionLabelHi={LABEL_HI}
-                  verseBlockOrder={verseBlockOrder}
-                />
-              </div>
-            </div>
-          )}
-          {(!exportBusy || exportVariant === "resolume") && (
-            <div className="export-hidden-host" aria-hidden>
-              <div
-                ref={exportResolumeRef}
-                className="export-card-snapshot"
-                style={{
-                  width: resolumeLayout.width,
-                  height: resolumeLayout.height,
-                  boxSizing: "border-box",
-                  overflow: "hidden",
-                }}
-              >
-                <ResolumeVerseCard
-                  layout={resolumeLayout}
-                  typography={mergePageTypography(
-                    resolumeTypography,
-                    cardPage,
-                    "resolumeTypographySizes",
-                  )}
-                  page={cardPage}
-                  backgroundDataUrl={cardBackgroundUrl}
-                  versionLabelEn={englishLabel}
-                  versionLabelHi={LABEL_HI}
-                  verseBlockOrder={verseBlockOrder}
-                />
-              </div>
-            </div>
-          )}
-        </>
-      )}
     </>
   );
 }

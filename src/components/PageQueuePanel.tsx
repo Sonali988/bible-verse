@@ -14,6 +14,7 @@ type Props = {
   exportBusy: boolean;
   onOpenExport: () => void;
   onUpdateHighlights: (lang: "en" | "hi", ranges: HighlightRange[]) => void;
+  onUpdateText: (lang: "en" | "hi", text: string) => void;
   labelEn: string;
   labelHi: string;
 };
@@ -32,6 +33,7 @@ export function PageQueuePanel({
   exportBusy,
   onOpenExport,
   onUpdateHighlights,
+  onUpdateText,
   labelEn,
   labelHi,
 }: Props) {
@@ -137,16 +139,22 @@ export function PageQueuePanel({
                 <span className="page-queue-highlights__badge">Edit mode</span>
               </div>
               <HighlightEditor
-                label={labelHi}
+                key={`${selected.id}-hi`}
+                label={selected.versionLabelHi ?? labelHi}
                 text={selected.textHi}
                 highlights={selected.highlightsHi}
                 onChange={(h) => onUpdateHighlights("hi", h)}
+                allowTextEdit
+                onTextChange={(t) => onUpdateText("hi", t)}
               />
               <HighlightEditor
-                label={labelEn}
+                key={`${selected.id}-en`}
+                label={selected.versionLabelEn ?? labelEn}
                 text={selected.textEn}
                 highlights={selected.highlightsEn}
                 onChange={(h) => onUpdateHighlights("en", h)}
+                allowTextEdit
+                onTextChange={(t) => onUpdateText("en", t)}
               />
             </div>
           )}

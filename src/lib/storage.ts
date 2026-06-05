@@ -11,7 +11,9 @@ import {
 } from "./verseBlockOrder";
 import { normalizeVerseRef } from "./referenceParser";
 import type { SqliteSchemaConfig } from "../bible/sqlite/schemaConfig";
+import { BIBLE_COM_HI } from "../bible/bibleCom/config";
 import {
+  englishSqliteVersion,
   normalizeEnglishSqliteVersionId,
   type EnglishSqliteVersionId,
 } from "../config/englishSqliteVersions";
@@ -89,10 +91,25 @@ export function loadPersisted(): Partial<PersistedState> {
     const pagesRaw = JSON.parse(
       localStorage.getItem(K_PAGES) ?? "null",
     ) as VersePage[] | null;
+    const englishSqliteVersionRaw = localStorage.getItem(K_ENGLISH_SQLITE_VERSION);
+    const englishSqliteVersionId =
+      englishSqliteVersionRaw != null
+        ? normalizeEnglishSqliteVersionId(englishSqliteVersionRaw)
+        : undefined;
+    const legacyEnLabel = englishSqliteVersion(
+      englishSqliteVersionId ?? normalizeEnglishSqliteVersionId(undefined),
+    ).label;
+    const legacyHiLabel = BIBLE_COM_HI.label;
     const pages = pagesRaw
       ?.map((p) => {
         const ref = normalizeVerseRef(p.ref);
-        return ref ? { ...p, ref } : null;
+        if (!ref) return null;
+        return {
+          ...p,
+          ref,
+          versionLabelEn: p.versionLabelEn ?? legacyEnLabel,
+          versionLabelHi: p.versionLabelHi ?? legacyHiLabel,
+        };
       })
       .filter((p): p is VersePage => p !== null);
     const cardLayoutRaw = JSON.parse(
@@ -130,11 +147,6 @@ export function loadPersisted(): Partial<PersistedState> {
       useBibleComEnRaw != null ? JSON.parse(useBibleComEnRaw) === true : undefined;
     const useBibleComHi =
       useBibleComHiRaw != null ? JSON.parse(useBibleComHiRaw) === true : undefined;
-    const englishSqliteVersionRaw = localStorage.getItem(K_ENGLISH_SQLITE_VERSION);
-    const englishSqliteVersionId =
-      englishSqliteVersionRaw != null
-        ? normalizeEnglishSqliteVersionId(englishSqliteVersionRaw)
-        : undefined;
 
     return {
       pages: pages ?? undefined,
