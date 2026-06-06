@@ -19,9 +19,18 @@ export const ENGLISH_SQLITE_VERSIONS: readonly EnglishSqliteVersion[] = [
   { id: "kjv", label: "KJV", bundledFile: "kjv.sqlite" },
   { id: "niv", label: "NIV", bundledFile: "niv.sqlite" },
   { id: "nlt", label: "NLT", bundledFile: "nlt.sqlite" },
-  { id: "ampc", label: "APMC", bundledFile: "ampc.sqlite" },
+  { id: "ampc", label: "AMPC", bundledFile: "ampc.sqlite" },
   { id: "tpt", label: "TPT", bundledFile: "tpt.sqlite" },
 ] as const;
+
+/** Hidden from the English translation dropdown until re-enabled. */
+const HIDDEN_ENGLISH_SQLITE_VERSION_IDS = new Set<EnglishSqliteVersionId>([
+  "tpt",
+]);
+
+export const ENGLISH_SQLITE_VERSIONS_IN_UI = ENGLISH_SQLITE_VERSIONS.filter(
+  (v) => !HIDDEN_ENGLISH_SQLITE_VERSION_IDS.has(v.id),
+);
 
 export const DEFAULT_ENGLISH_SQLITE_VERSION_ID: EnglishSqliteVersionId = "nkjv";
 
@@ -38,9 +47,13 @@ export function isEnglishSqliteVersionId(
 export function normalizeEnglishSqliteVersionId(
   raw: unknown,
 ): EnglishSqliteVersionId {
-  return isEnglishSqliteVersionId(raw)
-    ? raw
-    : DEFAULT_ENGLISH_SQLITE_VERSION_ID;
+  if (!isEnglishSqliteVersionId(raw)) {
+    return DEFAULT_ENGLISH_SQLITE_VERSION_ID;
+  }
+  if (HIDDEN_ENGLISH_SQLITE_VERSION_IDS.has(raw)) {
+    return DEFAULT_ENGLISH_SQLITE_VERSION_ID;
+  }
+  return raw;
 }
 
 export function englishSqliteVersion(

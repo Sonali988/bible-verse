@@ -22,7 +22,7 @@ export async function fetchSqliteArrayBuffer(
   signal?: AbortSignal,
 ): Promise<ArrayBuffer | null> {
   try {
-    const res = await fetch(url, { signal, cache: "force-cache" });
+    const res = await fetch(url, { signal, cache: "no-cache" });
     if (!res.ok) return null;
     return res.arrayBuffer();
   } catch {

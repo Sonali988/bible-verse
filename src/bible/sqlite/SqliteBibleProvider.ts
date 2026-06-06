@@ -2,6 +2,11 @@ import type { Database } from "sql.js";
 import type { VerseRef } from "../types";
 import type { BookInfo, BibleProvider } from "../provider";
 import { bookNameById } from "../books";
+import {
+  buildBookIdMaps,
+  toSqliteBookId,
+  type BookIdMaps,
+} from "./bookIdCanonical";
 import type { SqliteSchemaConfig } from "./schemaConfig";
 import { resolveSqliteSchema } from "./schemaInspect";
 
@@ -63,6 +68,10 @@ export class SqliteBibleProvider implements BibleProvider {
   private db: Database | null = null;
   private schema: SqliteSchemaConfig;
   private bookNames = new Map<string, string>();
+  private bookIdMaps: BookIdMaps = {
+    sqliteToCanonical: new Map(),
+    canonicalToSqlite: new Map(),
+  };
 
   constructor(versionLabel: string, schema: SqliteSchemaConfig) {
     this.versionLabel = versionLabel;
@@ -96,6 +105,7 @@ export class SqliteBibleProvider implements BibleProvider {
       this.db = null;
     }
     this.bookNames.clear();
+    this.bookIdMaps = { sqliteToCanonical: new Map(), canonicalToSqlite: new Map() };
   }
 
   private getDb(): Database {
@@ -119,20 +129,40 @@ export class SqliteBibleProvider implements BibleProvider {
         }
       }
     }
+    this.rebuildBookIdMaps();
   }
 
-  async listBooks(): Promise<BookInfo[]> {
+  private listDistinctSqliteBookIds(): string[] {
     const db = this.getDb();
     const s = this.schema;
     const bookCol = quoteIdent(s.bookColumn);
     const q = `SELECT DISTINCT ${bookCol} FROM ${quoteIdent(s.verseTable)} ORDER BY ${bookCol}`;
     const res = db.exec(q);
     const rows = res[0]?.values ?? [];
-    const ids = rows.map((r) => String(r[0]));
-    return ids.map((id) => ({
-      id,
-      name: this.bookNames.get(id) ?? bookNameById(id),
-    }));
+    return rows.map((r) => String(r[0]));
+  }
+
+  private rebuildBookIdMaps(): void {
+    this.bookIdMaps = buildBookIdMaps(
+      this.listDistinctSqliteBookIds(),
+      this.bookNames,
+    );
+  }
+
+  private sqliteBookId(canonicalBookId: string): string {
+    return toSqliteBookId(canonicalBookId, this.bookIdMaps);
+  }
+
+  async listBooks(): Promise<BookInfo[]> {
+    const sqliteIds = this.listDistinctSqliteBookIds();
+    return sqliteIds.map((sqliteId) => {
+      const canonicalId =
+        this.bookIdMaps.sqliteToCanonical.get(sqliteId) ?? sqliteId;
+      return {
+        id: canonicalId,
+        name: bookNameById(canonicalId),
+      };
+    });
   }
 
   async listChapters(bookId: string): Promise<number[]> {
@@ -140,7 +170,7 @@ export class SqliteBibleProvider implements BibleProvider {
     const s = this.schema;
     const q = `SELECT DISTINCT ${quoteIdent(s.chapterColumn)} FROM ${quoteIdent(s.verseTable)} WHERE ${quoteIdent(s.bookColumn)} = ? ORDER BY ${quoteIdent(s.chapterColumn)}`;
     const stmt = db.prepare(q);
-    stmt.bind([bindBook(bookId, s.bookIsNumeric)]);
+    stmt.bind([bindBook(this.sqliteBookId(bookId), s.bookIsNumeric)]);
     const chapters: number[] = [];
     while (stmt.step()) {
       const row = stmt.get();
@@ -155,7 +185,7 @@ export class SqliteBibleProvider implements BibleProvider {
     const s = this.schema;
     const q = `SELECT MAX(${quoteIdent(s.verseColumn)}) FROM ${quoteIdent(s.verseTable)} WHERE ${quoteIdent(s.bookColumn)} = ? AND ${quoteIdent(s.chapterColumn)} = ?`;
     const stmt = db.prepare(q);
-    stmt.bind([bindBook(bookId, s.bookIsNumeric), chapter]);
+    stmt.bind([bindBook(this.sqliteBookId(bookId), s.bookIsNumeric), chapter]);
     let max = 0;
     if (stmt.step()) {
       const row = stmt.get();
@@ -171,7 +201,7 @@ export class SqliteBibleProvider implements BibleProvider {
     const q = `SELECT ${quoteIdent(s.textColumn)} FROM ${quoteIdent(s.verseTable)} WHERE ${quoteIdent(s.bookColumn)} = ? AND ${quoteIdent(s.chapterColumn)} = ? AND ${quoteIdent(s.verseColumn)} = ? LIMIT 1`;
     const stmt = db.prepare(q);
     stmt.bind([
-      bindBook(ref.bookId, s.bookIsNumeric),
+      bindBook(this.sqliteBookId(ref.bookId), s.bookIsNumeric),
       ref.chapter,
       ref.verse,
     ]);

@@ -182,7 +182,13 @@ export function ReferencePicker({
     <section className="panel panel--compact">
       <h2>Reference</h2>
       {!ready && (
-        <p className="warn">Load English and Hindi SQLite files to enable lookup.</p>
+        <p className="warn">
+          {!providerEn.isReady() && !providerHi.isReady()
+            ? "Load English and Hindi SQLite files to enable lookup."
+            : !providerEn.isReady()
+              ? "English SQLite is still loading or missing — check the data panel."
+              : "Hindi SQLite is still loading or missing — check the data panel."}
+        </p>
       )}
       <div className="reference-picker__controls">
         <label className="reference-picker__field reference-picker__field--book">
