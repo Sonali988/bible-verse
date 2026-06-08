@@ -7,7 +7,12 @@ export type SharedStatePayload = PersistedState & {
 const API = "/api/state";
 
 export function remoteStorageEnabled(): boolean {
-  return import.meta.env.VITE_REMOTE_STORAGE === "true";
+  const flag = import.meta.env.VITE_REMOTE_STORAGE;
+  if (flag === "true") return true;
+  if (flag === "false") return false;
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host !== "localhost" && host !== "127.0.0.1";
 }
 
 function writeHeaders(): HeadersInit {
@@ -18,7 +23,10 @@ function writeHeaders(): HeadersInit {
 export async function fetchSharedState(): Promise<SharedStatePayload | null> {
   const res = await fetch(API, { cache: "no-store" });
   if (!res.ok) {
-    throw new Error(`Failed to load shared state (${res.status})`);
+    const err = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(
+      err?.error ?? `Failed to load shared state (${res.status})`,
+    );
   }
   const data = (await res.json()) as SharedStatePayload | null;
   return data;

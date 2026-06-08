@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@upstash/redis": "^1.38.0",
+    "@vercel/node": "^5.8.12",
     "fflate": "^0.8.3",
     "file-saver": "^2.0.5",
     "html-to-image": "^1.11.13",
@@ -22,7 +23,6 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/sql.js": "^1.4.11",
-    "@vercel/node": "^5.8.12",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "~5.7.2",
     "vite": "^6.0.3"

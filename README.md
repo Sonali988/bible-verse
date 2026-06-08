@@ -81,10 +81,9 @@ To let everyone on [your deployed app](https://bible-verse-two.vercel.app/) see 
 
 1. **Add Redis** — In the [Vercel dashboard](https://vercel.com/dashboard), open your project → **Storage** / **Marketplace** → install **[Upstash for Redis](https://vercel.com/marketplace/upstash)** and link it to the project. Vercel sets `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` automatically.
 
-2. **Enable remote storage** — Project → **Settings** → **Environment Variables** → add:
-   - `VITE_REMOTE_STORAGE` = `true` (Production, and Preview if you use previews)
+2. **Redeploy** — Push and redeploy. Shared storage turns on automatically on your Vercel URL (not on `localhost`). Optional: set `VITE_REMOTE_STORAGE=false` to force local-only mode in production.
 
-3. **Redeploy** — Push this repo and redeploy so the `/api/state` serverless function and env var are live.
+3. **Verify API** — Open `https://your-app.vercel.app/api/state`. It should return `null` (empty) or JSON — **not** a 500 error. A 500 means Redis env vars are missing; re-link Upstash to the project and redeploy.
 
 4. **Optional write protection** — Set `BVC_WRITE_SECRET` on the server and the same value as `VITE_BVC_WRITE_SECRET` for the client. Anyone with the deployed JS can still read the secret; for real access control use [Vercel Deployment Protection](https://vercel.com/docs/security/deployment-protection) or add proper auth later.
 
