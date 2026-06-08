@@ -47,12 +47,13 @@ import type { ExportVariant } from "./export/exportVariant";
 import { formatReference } from "./lib/referenceParser";
 import { newId } from "./lib/id";
 import {
-  loadBackgroundDataUrl,
-  loadPersisted,
   saveBackgroundDataUrl,
-  savePersisted,
+  savePersistedLocal,
+  savePersistedRemote,
   DEFAULT_VERSE_BLOCK_ORDER,
+  type PersistedState,
 } from "./lib/storage";
+import type { AppBootstrapData } from "./AppBootstrap";
 import type { VerseBlockOrder } from "./lib/verseBlockOrder";
 import { computeAutoFitBodyFontOverrides } from "./lib/fitVerseBodyFont";
 import { VerseOrderControl } from "./components/VerseOrderControl";
@@ -127,8 +128,16 @@ function exportPngFileName(ref: VerseRef, variant: ExportVariant): string {
   return `${sanitizeFileName(formatReference(ref))}-${variant}.png`;
 }
 
-export default function App() {
-  const persisted = useMemo(() => loadPersisted(), []);
+export default function App({
+  bootstrap,
+  sharedStorage = false,
+  onReloadShared,
+}: {
+  bootstrap: AppBootstrapData;
+  sharedStorage?: boolean;
+  onReloadShared?: () => Promise<void>;
+}) {
+  const persisted = bootstrap.persisted;
   const [useSample, setUseSample] = useState(false);
   const [useBibleComEn, setUseBibleComEn] = useState(
     () => persisted.useBibleComEn ?? false,
@@ -184,8 +193,8 @@ export default function App() {
     JSON.stringify(persisted.schemaHi ?? defaultSqliteSchema(), null, 2),
   );
 
-  const [bgDataUrl, setBgDataUrl] = useState<string | null>(() =>
-    loadBackgroundDataUrl(),
+  const [bgDataUrl, setBgDataUrl] = useState<string | null>(
+    () => bootstrap.bgDataUrl,
   );
   const [bgSaveWarning, setBgSaveWarning] = useState<string | null>(null);
   const [pages, setPages] = useState<VersePage[]>(persisted.pages ?? []);
@@ -303,6 +312,12 @@ export default function App() {
     englishLabel,
   ]);
 
+  const [sharedSaveState, setSharedSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const sharedSaveTimerRef = useRef<number | undefined>(undefined);
+  const remoteUpdatedAtRef = useRef<number | null>(bootstrap.remoteUpdatedAt);
+
   useEffect(() => {
     if (bgDataUrl && !saveBackgroundDataUrl(bgDataUrl)) {
       setBgSaveWarning(
@@ -314,7 +329,7 @@ export default function App() {
   }, [bgDataUrl]);
 
   useEffect(() => {
-    savePersisted({
+    const snapshot: PersistedState = {
       pages,
       cardLayout,
       typography,
@@ -326,7 +341,29 @@ export default function App() {
       useBibleComEn,
       useBibleComHi,
       englishSqliteVersionId: englishVersionId,
-    });
+    };
+
+    if (!sharedStorage) {
+      savePersistedLocal(snapshot);
+      return;
+    }
+
+    window.clearTimeout(sharedSaveTimerRef.current);
+    setSharedSaveState("saving");
+    sharedSaveTimerRef.current = window.setTimeout(() => {
+      void savePersistedRemote(snapshot, remoteUpdatedAtRef.current ?? undefined)
+        .then((updatedAt) => {
+          remoteUpdatedAtRef.current = updatedAt;
+          setSharedSaveState("saved");
+        })
+        .catch(() => {
+          setSharedSaveState("error");
+        });
+    }, 800);
+
+    return () => {
+      window.clearTimeout(sharedSaveTimerRef.current);
+    };
   }, [
     pages,
     cardLayout,
@@ -339,6 +376,7 @@ export default function App() {
     useBibleComEn,
     useBibleComHi,
     englishVersionId,
+    sharedStorage,
   ]);
 
   useEffect(() => {
@@ -904,6 +942,29 @@ export default function App() {
           </span>
           {selected && (
             <span className="chip chip--accent">{formatReference(selected.ref)}</span>
+          )}
+          {sharedStorage && (
+            <>
+              <span className="chip">Shared workspace</span>
+              {sharedSaveState === "saving" && (
+                <span className="chip">Saving…</span>
+              )}
+              {sharedSaveState === "saved" && (
+                <span className="chip">Saved for everyone</span>
+              )}
+              {sharedSaveState === "error" && (
+                <span className="chip chip--warn">Save failed</span>
+              )}
+              {onReloadShared && (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={() => void onReloadShared()}
+                >
+                  Refresh cards
+                </button>
+              )}
+            </>
           )}
           <button
             type="button"

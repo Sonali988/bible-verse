@@ -71,7 +71,28 @@ Default layout after reset: **Hindi title + verse on top**, **English title + ve
 
 ## Persistence
 
-The **page queue**, **card layout** and **typography** (from Edit card), and **schema JSON** are saved to **localStorage** (`bvc:*` keys).
+### Local (default)
+
+The **page queue**, **card layout** and **typography** (from Edit card), and **schema JSON** are saved to **localStorage** (`bvc:*` keys) in the browser. Each visitor has their own copy.
+
+### Shared workspace (Vercel + Upstash Redis)
+
+To let everyone on [your deployed app](https://bible-verse-two.vercel.app/) see the same card queue and design settings:
+
+1. **Add Redis** — In the [Vercel dashboard](https://vercel.com/dashboard), open your project → **Storage** / **Marketplace** → install **[Upstash for Redis](https://vercel.com/marketplace/upstash)** and link it to the project. Vercel sets `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` automatically.
+
+2. **Enable remote storage** — Project → **Settings** → **Environment Variables** → add:
+   - `VITE_REMOTE_STORAGE` = `true` (Production, and Preview if you use previews)
+
+3. **Redeploy** — Push this repo and redeploy so the `/api/state` serverless function and env var are live.
+
+4. **Optional write protection** — Set `BVC_WRITE_SECRET` on the server and the same value as `VITE_BVC_WRITE_SECRET` for the client. Anyone with the deployed JS can still read the secret; for real access control use [Vercel Deployment Protection](https://vercel.com/docs/security/deployment-protection) or add proper auth later.
+
+**How it works:** the React app calls `GET /api/state` on load and `PUT /api/state` (debounced) when cards or layout change. Data is stored in Redis under one shared key. Use **Refresh cards** in the header to pull the latest from another browser.
+
+**Local dev:** `npm run dev` keeps using localStorage. To test the API locally, run [`vercel dev`](https://vercel.com/docs/cli/dev) with Redis env vars linked.
+
+**Not synced:** custom background images still use localStorage (too large for Redis). Use a committed `public/bg.png` or [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) if you need a shared background later.
 
 ## Highlights
 
