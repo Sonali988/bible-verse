@@ -317,6 +317,7 @@ export default function App({
   >("idle");
   const sharedSaveTimerRef = useRef<number | undefined>(undefined);
   const remoteUpdatedAtRef = useRef<number | null>(bootstrap.remoteUpdatedAt);
+  const skipInitialRemoteSaveRef = useRef(sharedStorage);
 
   useEffect(() => {
     if (bgDataUrl && !saveBackgroundDataUrl(bgDataUrl)) {
@@ -345,6 +346,11 @@ export default function App({
 
     if (!sharedStorage) {
       savePersistedLocal(snapshot);
+      return;
+    }
+
+    if (skipInitialRemoteSaveRef.current) {
+      skipInitialRemoteSaveRef.current = false;
       return;
     }
 
