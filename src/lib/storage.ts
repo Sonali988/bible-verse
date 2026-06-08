@@ -101,7 +101,7 @@ export function loadPersisted(): Partial<PersistedState> {
     ).label;
     const legacyHiLabel = BIBLE_COM_HI.label;
     const pages = pagesRaw
-      ?.map((p) => {
+      ?.map((p): VersePage | null => {
         const ref = normalizeVerseRef(p.ref);
         if (!ref) return null;
         return {
