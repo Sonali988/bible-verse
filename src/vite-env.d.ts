@@ -14,6 +14,8 @@ interface ImportMetaEnv {
   readonly VITE_BUNDLED_EN_NLT_SQLITE_URL?: string;
   readonly VITE_BUNDLED_EN_AMPC_SQLITE_URL?: string;
   readonly VITE_BUNDLED_EN_TPT_SQLITE_URL?: string;
+  readonly VITE_REMOTE_STORAGE?: string;
+  readonly VITE_BVC_WRITE_SECRET?: string;
 }
 
 interface ImportMeta {
