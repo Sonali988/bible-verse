@@ -9,7 +9,7 @@ export type HindiSource = {
 export const HINDI_SOURCES: readonly HindiSource[] = [
   { id: "sqlite", label: "HINOVBSI", detail: "SQLite bundled" },
   { id: "hhbd", label: "HHBD", detail: "YouVersion API" },
-  { id: "biblecom", label: "HINOVBSI", detail: "Bible.com API" },
+  // { id: "biblecom", label: "HINOVBSI", detail: "Bible.com API" },
 ] as const;
 
 export const DEFAULT_HINDI_SOURCE_ID: HindiSourceId = "sqlite";
