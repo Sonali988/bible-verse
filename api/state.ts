@@ -15,6 +15,7 @@ export type SharedAppState = {
   verseBlockOrder: unknown;
   useBibleComEn: boolean;
   useBibleComHi: boolean;
+  hindiSourceId: string;
   englishSqliteVersionId: string;
 };
 

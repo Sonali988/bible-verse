@@ -11,6 +11,8 @@ import {
 } from "./bible/StaticJsonProvider";
 import { BibleComProvider } from "./bible/bibleCom/BibleComProvider";
 import { BIBLE_COM_EN, BIBLE_COM_HI } from "./bible/bibleCom/config";
+import { YouVersionProvider } from "./bible/youversion/YouVersionProvider";
+import { YOUVERSION_HHBD, YOUVERSION_TPT } from "./bible/youversion/config";
 import {
   CARD_LAYOUT,
   clampLayoutTextToLeftHalf,
@@ -65,11 +67,21 @@ import {
   bundledEnglishSqliteUrl,
   ENGLISH_SQLITE_VERSIONS_IN_UI,
   englishSqliteVersion,
+  englishVersionUsesYouVersion,
   normalizeEnglishSqliteVersionId,
   type EnglishSqliteVersionId,
 } from "./config/englishSqliteVersions";
+import {
+  HINDI_SOURCES,
+  hindiSourceLabel,
+  hindiSourceUsesBibleCom,
+  hindiSourceUsesSqlite,
+  hindiSourceUsesYouVersion,
+  normalizeHindiSourceId,
+  type HindiSourceId,
+} from "./config/hindiSources";
 
-const LABEL_HI = "HINOVBSI";
+const SQLITE_HI_LABEL = "HINOVBSI";
 
 function sanitizeFileName(s: string): string {
   return s.replace(/[^\w\u0900-\u0fff-]+/g, "_").replace(/_+/g, "_").slice(0, 120);
@@ -142,14 +154,16 @@ export default function App({
   const [useBibleComEn, setUseBibleComEn] = useState(
     () => persisted.useBibleComEn ?? false,
   );
-  const [useBibleComHi, setUseBibleComHi] = useState(
-    () => persisted.useBibleComHi ?? false,
+  const [hindiSourceId, setHindiSourceId] = useState<HindiSourceId>(() =>
+    normalizeHindiSourceId(persisted.hindiSourceId),
   );
   const [englishVersionId, setEnglishVersionId] = useState<EnglishSqliteVersionId>(
     () =>
       normalizeEnglishSqliteVersionId(persisted.englishSqliteVersionId),
   );
   const englishLabel = englishSqliteVersion(englishVersionId).label;
+  const hindiLabel = hindiSourceLabel(hindiSourceId);
+  const englishUsesYouVersion = englishVersionUsesYouVersion(englishVersionId);
   const [sqliteEnActive, setSqliteEnActive] = useState(false);
   const [sqliteHiActive, setSqliteHiActive] = useState(false);
   const [schemaEn, setSchemaEn] = useState<SqliteSchemaConfig>(
@@ -166,7 +180,7 @@ export default function App({
     return new EmptyBibleProvider(label);
   });
   const [providerHi, setProviderHi] = useState<BibleProvider>(
-    () => new EmptyBibleProvider(LABEL_HI),
+    () => new EmptyBibleProvider(hindiSourceLabel(normalizeHindiSourceId(persisted.hindiSourceId))),
   );
 
   const [cardLayout, setCardLayout] = useState<LayoutSpec>(() =>
@@ -259,14 +273,21 @@ export default function App({
     });
     setProviderHi((prev) => {
       if (prev instanceof SqliteBibleProvider) prev.close();
-      return new StaticJsonProvider(LABEL_HI, "hi");
+      return new StaticJsonProvider(hindiLabel, "hi");
     });
-  }, [useSample]);
+  }, [useSample, englishLabel, hindiLabel]);
 
   useEffect(() => {
     if (useSample) return;
 
-    if (useBibleComEn) {
+    if (englishUsesYouVersion) {
+      setProviderEn((prev) => {
+        if (prev instanceof YouVersionProvider && prev.versionLabel === englishLabel) {
+          return prev;
+        }
+        return new YouVersionProvider(YOUVERSION_TPT);
+      });
+    } else if (useBibleComEn) {
       setProviderEn((prev) => {
         if (prev instanceof BibleComProvider) return prev;
         return new BibleComProvider(BIBLE_COM_EN);
@@ -286,7 +307,14 @@ export default function App({
       });
     }
 
-    if (useBibleComHi) {
+    if (hindiSourceUsesYouVersion(hindiSourceId)) {
+      setProviderHi((prev) => {
+        if (prev instanceof YouVersionProvider && prev.versionLabel === hindiLabel) {
+          return prev;
+        }
+        return new YouVersionProvider(YOUVERSION_HHBD);
+      });
+    } else if (hindiSourceUsesBibleCom(hindiSourceId)) {
       setProviderHi((prev) => {
         if (prev instanceof BibleComProvider) return prev;
         return new BibleComProvider(BIBLE_COM_HI);
@@ -299,17 +327,21 @@ export default function App({
     } else {
       setProviderHi((prev) => {
         if (prev instanceof SqliteBibleProvider && prev.isReady()) return prev;
-        if (prev instanceof EmptyBibleProvider) return prev;
-        return new EmptyBibleProvider(LABEL_HI);
+        if (prev instanceof EmptyBibleProvider && prev.versionLabel === hindiLabel) {
+          return prev;
+        }
+        return new EmptyBibleProvider(hindiLabel);
       });
     }
   }, [
     useSample,
     useBibleComEn,
-    useBibleComHi,
+    hindiSourceId,
     sqliteEnActive,
     sqliteHiActive,
     englishLabel,
+    hindiLabel,
+    englishUsesYouVersion,
   ]);
 
   const [sharedSaveState, setSharedSaveState] = useState<
@@ -340,7 +372,7 @@ export default function App({
       schemaHi,
       verseBlockOrder,
       useBibleComEn,
-      useBibleComHi,
+      hindiSourceId,
       englishSqliteVersionId: englishVersionId,
     };
 
@@ -380,7 +412,7 @@ export default function App({
     schemaHi,
     verseBlockOrder,
     useBibleComEn,
-    useBibleComHi,
+    hindiSourceId,
     englishVersionId,
     sharedStorage,
   ]);
@@ -405,7 +437,7 @@ export default function App({
 
       if (bufHi) {
         try {
-          const pHi = new SqliteBibleProvider(LABEL_HI, schemaHiBoot);
+          const pHi = new SqliteBibleProvider(SQLITE_HI_LABEL, schemaHiBoot);
           const resolvedHi = await pHi.loadArrayBuffer(bufHi);
           if (!isCurrentLoad() || ac.signal.aborted) {
             pHi.close();
@@ -416,7 +448,7 @@ export default function App({
           setSchemaHiJson(JSON.stringify(resolvedHi, null, 2));
           sqliteHiProviderRef.current = pHi;
           setSqliteHiActive(true);
-          if (!useBibleComHi) setProviderHi(pHi);
+          if (hindiSourceUsesSqlite(hindiSourceId)) setProviderHi(pHi);
           setUseSample(false);
           if (JSON.stringify(resolvedHi) !== JSON.stringify(schemaHiBoot)) {
             setSqliteLoadNote(
@@ -428,15 +460,19 @@ export default function App({
             sqliteHiProviderRef.current?.close();
             sqliteHiProviderRef.current = null;
             setSqliteHiActive(false);
-            if (!useBibleComHi) {
-              setProviderHi(new EmptyBibleProvider(LABEL_HI));
+            if (hindiSourceUsesSqlite(hindiSourceId)) {
+              setProviderHi(new EmptyBibleProvider(hindiLabel));
             }
             setSqliteFileErr(
               e instanceof Error ? e.message : String(e),
             );
           }
         }
-      } else if (isCurrentLoad() && !ac.signal.aborted && !useBibleComHi) {
+      } else if (
+        isCurrentLoad() &&
+        !ac.signal.aborted &&
+        hindiSourceUsesSqlite(hindiSourceId)
+      ) {
         setSqliteFileErr(
           `Could not load Hindi from ${BUNDLED_SQLITE_URLS.hi}. Add public/bibles/bsiov.sqlite or use the file picker.`,
         );
@@ -448,11 +484,16 @@ export default function App({
       ac.abort();
       if (bundledHiLoadGenRef.current === loadGen) setHiBundledLoading(false);
     };
-  }, [useBibleComHi, useSample]);
+  }, [hindiSourceId, useSample]);
 
   /** Auto-load bundled English SQLite when the selected version changes. */
   useEffect(() => {
-    if (useSample) return;
+    if (useSample || englishVersionUsesYouVersion(englishVersionId)) {
+      if (englishVersionUsesYouVersion(englishVersionId)) {
+        setEnBundledLoading(false);
+      }
+      return;
+    }
     const ac = new AbortController();
     const loadGen = ++bundledEnLoadGenRef.current;
     const isCurrentLoad = () => bundledEnLoadGenRef.current === loadGen;
@@ -477,7 +518,7 @@ export default function App({
           setSchemaEnJson(JSON.stringify(resolvedEn, null, 2));
           sqliteEnProviderRef.current = pEn;
           setSqliteEnActive(true);
-          if (!useBibleComEn) setProviderEn(pEn);
+          if (!useBibleComEn && !englishUsesYouVersion) setProviderEn(pEn);
           setUseSample(false);
           setSqliteFileErr(null);
           if (JSON.stringify(resolvedEn) !== JSON.stringify(schemaEnBoot)) {
@@ -490,7 +531,7 @@ export default function App({
             sqliteEnProviderRef.current?.close();
             sqliteEnProviderRef.current = null;
             setSqliteEnActive(false);
-            if (!useBibleComEn) {
+            if (!useBibleComEn && !englishUsesYouVersion) {
               setProviderEn(
                 new EmptyBibleProvider(englishSqliteVersion(englishVersionId).label),
               );
@@ -504,12 +545,13 @@ export default function App({
         isCurrentLoad() &&
         !ac.signal.aborted &&
         !useBibleComEn &&
+        !englishUsesYouVersion &&
         !useSample
       ) {
         sqliteEnProviderRef.current?.close();
         sqliteEnProviderRef.current = null;
         setSqliteEnActive(false);
-        if (!useBibleComEn) {
+        if (!useBibleComEn && !englishUsesYouVersion) {
           setProviderEn(
             new EmptyBibleProvider(englishSqliteVersion(englishVersionId).label),
           );
@@ -630,7 +672,7 @@ export default function App({
     setSqliteLoadNote(null);
     try {
       const configured = lang === "en" ? schemaEn : schemaHi;
-      const label = lang === "en" ? englishLabel : LABEL_HI;
+      const label = lang === "en" ? englishLabel : SQLITE_HI_LABEL;
       const prov = new SqliteBibleProvider(label, configured);
       const resolved = await prov.loadFile(file);
       if (lang === "en") {
@@ -638,13 +680,13 @@ export default function App({
         setSchemaEnJson(JSON.stringify(resolved, null, 2));
         sqliteEnProviderRef.current = prov;
         setSqliteEnActive(true);
-        if (!useBibleComEn) setProviderEn(prov);
+        if (!useBibleComEn && !englishUsesYouVersion) setProviderEn(prov);
       } else {
         setSchemaHi(resolved);
         setSchemaHiJson(JSON.stringify(resolved, null, 2));
         sqliteHiProviderRef.current = prov;
         setSqliteHiActive(true);
-        if (!useBibleComHi) setProviderHi(prov);
+        if (hindiSourceUsesSqlite(hindiSourceId)) setProviderHi(prov);
       }
       setUseSample(false);
       if (JSON.stringify(resolved) !== JSON.stringify(configured)) {
@@ -894,7 +936,7 @@ export default function App({
       resolumeTypography,
       backgroundDataUrl: cardBackgroundUrl,
       englishLabel,
-      labelHi: LABEL_HI,
+      labelHi: hindiLabel,
       verseBlockOrder,
     });
   }, [
@@ -904,6 +946,7 @@ export default function App({
     resolumeTypography,
     cardBackgroundUrl,
     englishLabel,
+    hindiLabel,
     verseBlockOrder,
   ]);
 
@@ -1014,6 +1057,18 @@ export default function App({
           aria-label="Data sources and schema"
           aria-hidden={!sidebarOpen}
         >
+          <div className="app-sidebar__chrome">
+            <h2 className="app-sidebar__title">Data panel</h2>
+            <button
+              type="button"
+              className="app-sidebar__close"
+              aria-label="Close data panel"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <span aria-hidden>×</span>
+            </button>
+          </div>
+          <div className="app-sidebar__scroll">
       <section className="panel panel--sidebar">
         <h2>SQLite sources</h2>
         {bundledStatus === "loading" && (
@@ -1021,7 +1076,11 @@ export default function App({
         )}
         {(bundledStatus === "loaded" || bundledStatus === "partial") && (
           <p className="muted">
-            {sqliteEnActive ? (
+            {englishUsesYouVersion ? (
+              <>
+                English <code>{englishLabel}</code> via YouVersion API.
+              </>
+            ) : sqliteEnActive ? (
               <>
                 English <code>{englishLabel}</code> loaded (
                 <code>{bundledEnglishSqliteUrl(englishVersionId)}</code>
@@ -1035,7 +1094,15 @@ export default function App({
                 not loaded — use the file picker or check the error below.
               </>
             )}{" "}
-            {sqliteHiActive ? (
+            {hindiSourceUsesYouVersion(hindiSourceId) ? (
+              <>
+                Hindi <code>{hindiLabel}</code> via YouVersion API.
+              </>
+            ) : hindiSourceUsesBibleCom(hindiSourceId) ? (
+              <>
+                Hindi <code>{hindiLabel}</code> via Bible.com API.
+              </>
+            ) : sqliteHiActive ? (
               <>
                 Hindi loaded (<code>{BUNDLED_SQLITE_URLS.hi}</code>).
               </>
@@ -1072,7 +1139,7 @@ export default function App({
         <div className="grid2" style={{ marginTop: "0.75rem" }}>
           <div className="bible-source-column">
             <label>
-              English translation (SQLite)
+              English translation
               <select
                 value={englishVersionId}
                 disabled={useSample || useBibleComEn}
@@ -1085,20 +1152,37 @@ export default function App({
                 {ENGLISH_SQLITE_VERSIONS_IN_UI.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.label}
+                    {v.youVersionBibleId != null ? " (YouVersion API)" : ""}
                   </option>
                 ))}
               </select>
             </label>
             <p className="hint" style={{ marginTop: "0.35rem" }}>
-              Loads <code>public/bibles/{englishSqliteVersion(englishVersionId).bundledFile}</code>{" "}
-              when present. Default: NKJV.
+              {englishUsesYouVersion ? (
+                <>
+                  Loads <code>{englishLabel}</code> from the{" "}
+                  <a
+                    href="https://developers.youversion.com/api/bibles"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    YouVersion Platform Bibles API
+                  </a>
+                  .
+                </>
+              ) : (
+                <>
+                  Loads <code>public/bibles/{englishSqliteVersion(englishVersionId).bundledFile}</code>{" "}
+                  when present. Default: NKJV.
+                </>
+              )}
             </p>
             <label>
               English SQLite (.sqlite) — optional override
               <input
                 type="file"
                 accept=".sqlite,.db,application/x-sqlite3,*/*"
-                disabled={useSample || useBibleComEn}
+                disabled={useSample || useBibleComEn || englishUsesYouVersion}
                 onChange={(e) =>
                   void loadSqlite(e.target.files?.[0] ?? null, "en")
                 }
@@ -1108,7 +1192,7 @@ export default function App({
               <input
                 type="checkbox"
                 checked={useBibleComEn}
-                disabled={useSample}
+                disabled={useSample || englishUsesYouVersion}
                 onChange={(e) => setUseBibleComEn(e.target.checked)}
               />
               Use Bible.com API ({BIBLE_COM_EN.label})
@@ -1116,31 +1200,64 @@ export default function App({
           </div>
           <div className="bible-source-column">
             <label>
+              Hindi translation
+              <select
+                value={hindiSourceId}
+                disabled={useSample}
+                onChange={(e) =>
+                  setHindiSourceId(normalizeHindiSourceId(e.target.value))
+                }
+              >
+                {HINDI_SOURCES.map((source) => (
+                  <option key={source.id} value={source.id}>
+                    {source.label} ({source.detail})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="hint" style={{ marginTop: "0.35rem" }}>
+              {hindiSourceUsesYouVersion(hindiSourceId) ? (
+                <>
+                  Loads <code>{hindiLabel}</code> from the YouVersion Platform Bibles API.
+                </>
+              ) : hindiSourceUsesBibleCom(hindiSourceId) ? (
+                <>Uses Bible.com verse endpoints for {hindiLabel}.</>
+              ) : (
+                <>
+                  Bundled SQLite: <code>public/bibles/bsiov.sqlite</code>.
+                </>
+              )}
+            </p>
+            <label>
               Hindi SQLite (.sqlite) — optional override
               <input
                 type="file"
                 accept=".sqlite,.db,application/x-sqlite3,*/*"
+                disabled={useSample || !hindiSourceUsesSqlite(hindiSourceId)}
                 onChange={(e) =>
                   void loadSqlite(e.target.files?.[0] ?? null, "hi")
                 }
               />
             </label>
-            <label className="bible-source-column__toggle btn-row">
-              <input
-                type="checkbox"
-                checked={useBibleComHi}
-                disabled={useSample}
-                onChange={(e) => setUseBibleComHi(e.target.checked)}
-              />
-              Use Bible.com API ({BIBLE_COM_HI.label})
-            </label>
           </div>
         </div>
-        {!useSample && (useBibleComEn || useBibleComHi) && (
+        {!useSample &&
+          (useBibleComEn ||
+            englishUsesYouVersion ||
+            hindiSourceUsesYouVersion(hindiSourceId) ||
+            hindiSourceUsesBibleCom(hindiSourceId)) && (
           <p className="hint" style={{ marginTop: "0.5rem" }}>
-            Bible.com uses <code>https://www.bible.com/_next/data/…json</code> verse endpoints.
-            Uncheck a box to use the SQLite file for that language instead (after loading a file
-            above).
+            TPT and HHBD use the{" "}
+            <a
+              href="https://developers.youversion.com/api/bibles"
+              target="_blank"
+              rel="noreferrer"
+            >
+              YouVersion Platform Bibles API
+            </a>{" "}
+            (<code>api.youversion.com/v1/bibles/…/passages/…</code>). Bible.com uses{" "}
+            <code>https://www.bible.com/_next/data/…json</code> verse endpoints. Pick SQLite in
+            the dropdown to use bundled or uploaded <code>.sqlite</code> files instead.
           </p>
         )}
         {sqliteFileErr && <p className="error">{sqliteFileErr}</p>}
@@ -1181,6 +1298,16 @@ export default function App({
           Apply schema JSON
         </button>
       </section>
+          </div>
+          <div className="app-sidebar__foot">
+            <button
+              type="button"
+              className="btn btn--ghost app-sidebar__done"
+              onClick={() => setSidebarOpen(false)}
+            >
+              Done
+            </button>
+          </div>
         </aside>
 
         <div
@@ -1225,7 +1352,7 @@ export default function App({
                 </h3>
                 <div className="verse-draft__body">
                   <div className="verse-draft__col">
-                    <span className="verse-draft__label">{LABEL_HI}</span>
+                    <span className="verse-draft__label">{hindiLabel}</span>
                     <p className="verse-draft__text">{item.textHi}</p>
                   </div>
                   <div className="verse-draft__col">
@@ -1268,7 +1395,7 @@ export default function App({
         onUpdateHighlights={updateSelectedHighlights}
         onUpdateText={updateSelectedText}
         labelEn={englishLabel}
-        labelHi={LABEL_HI}
+        labelHi={hindiLabel}
       />
       </div>
 
@@ -1343,7 +1470,7 @@ export default function App({
                         page={p}
                         backgroundDataUrl={cardBackgroundUrl}
                         versionLabelEn={p.versionLabelEn ?? englishLabel}
-                        versionLabelHi={p.versionLabelHi ?? LABEL_HI}
+                        versionLabelHi={p.versionLabelHi ?? hindiLabel}
                         verseBlockOrder={verseBlockOrder}
                       />
                     </div>
@@ -1420,7 +1547,7 @@ export default function App({
                         page={p}
                         backgroundDataUrl={cardBackgroundUrl}
                         versionLabelEn={p.versionLabelEn ?? englishLabel}
-                        versionLabelHi={p.versionLabelHi ?? LABEL_HI}
+                        versionLabelHi={p.versionLabelHi ?? hindiLabel}
                         verseBlockOrder={verseBlockOrder}
                       />
                     </div>
