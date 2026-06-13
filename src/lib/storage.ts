@@ -11,12 +11,16 @@ import {
 } from "./verseBlockOrder";
 import { normalizeVerseRef } from "./referenceParser";
 import type { SqliteSchemaConfig } from "../bible/sqlite/schemaConfig";
-import { BIBLE_COM_HI } from "../bible/bibleCom/config";
 import {
   englishSqliteVersion,
   normalizeEnglishSqliteVersionId,
   type EnglishSqliteVersionId,
 } from "../config/englishSqliteVersions";
+import {
+  hindiSourceLabel,
+  normalizeHindiSourceId,
+  type HindiSourceId,
+} from "../config/hindiSources";
 import {
   fetchSharedState,
   remoteStorageEnabled,
@@ -34,6 +38,7 @@ const K_SCHEMA_HI = "bvc:schemaHi";
 const K_VERSE_BLOCK_ORDER = "bvc:verseBlockOrder";
 const K_USE_BIBLE_COM_EN = "bvc:useBibleComEn";
 const K_USE_BIBLE_COM_HI = "bvc:useBibleComHi";
+const K_HINDI_SOURCE = "bvc:hindiSourceId";
 const K_ENGLISH_SQLITE_VERSION = "bvc:englishSqliteVersionId";
 const K_BG_DATA_URL = "bvc:bgDataUrl";
 
@@ -47,7 +52,7 @@ export type PersistedState = {
   schemaHi: SqliteSchemaConfig;
   verseBlockOrder: VerseBlockOrder;
   useBibleComEn: boolean;
-  useBibleComHi: boolean;
+  hindiSourceId: HindiSourceId;
   englishSqliteVersionId: EnglishSqliteVersionId;
 };
 
@@ -75,6 +80,7 @@ export function normalizePersisted(raw: {
   verseBlockOrder?: unknown;
   useBibleComEn?: unknown;
   useBibleComHi?: unknown;
+  hindiSourceId?: unknown;
   englishSqliteVersionId?: unknown;
 }): Partial<PersistedState> {
   const pagesRaw = raw.pages as VersePage[] | null | undefined;
@@ -85,7 +91,15 @@ export function normalizePersisted(raw: {
   const legacyEnLabel = englishSqliteVersion(
     englishSqliteVersionId ?? normalizeEnglishSqliteVersionId(undefined),
   ).label;
-  const legacyHiLabel = BIBLE_COM_HI.label;
+  const hindiSourceId =
+    raw.hindiSourceId != null
+      ? normalizeHindiSourceId(String(raw.hindiSourceId))
+      : raw.useBibleComHi === true
+        ? "biblecom"
+        : undefined;
+  const legacyHiLabel = hindiSourceLabel(
+    hindiSourceId ?? normalizeHindiSourceId(undefined),
+  );
   const pages = pagesRaw
     ?.map((p): VersePage | null => {
       const ref = normalizeVerseRef(p.ref);
@@ -117,8 +131,6 @@ export function normalizePersisted(raw: {
       : undefined;
   const useBibleComEn =
     raw.useBibleComEn != null ? raw.useBibleComEn === true : undefined;
-  const useBibleComHi =
-    raw.useBibleComHi != null ? raw.useBibleComHi === true : undefined;
 
   return {
     pages: pages ?? undefined,
@@ -130,7 +142,7 @@ export function normalizePersisted(raw: {
     schemaHi: schemaHi ?? undefined,
     verseBlockOrder,
     useBibleComEn,
-    useBibleComHi,
+    hindiSourceId,
     englishSqliteVersionId,
   };
 }
@@ -191,6 +203,7 @@ export function loadPersisted(): Partial<PersistedState> {
     const verseBlockOrderRaw = localStorage.getItem(K_VERSE_BLOCK_ORDER);
     const useBibleComEnRaw = localStorage.getItem(K_USE_BIBLE_COM_EN);
     const useBibleComHiRaw = localStorage.getItem(K_USE_BIBLE_COM_HI);
+    const hindiSourceRaw = localStorage.getItem(K_HINDI_SOURCE);
 
     return normalizePersisted({
       pages: pagesRaw,
@@ -209,6 +222,7 @@ export function loadPersisted(): Partial<PersistedState> {
         useBibleComEnRaw != null ? JSON.parse(useBibleComEnRaw) : undefined,
       useBibleComHi:
         useBibleComHiRaw != null ? JSON.parse(useBibleComHiRaw) : undefined,
+      hindiSourceId: hindiSourceRaw,
     });
   } catch {
     return {};
@@ -225,7 +239,11 @@ export function savePersistedLocal(state: PersistedState): void {
   localStorage.setItem(K_SCHEMA_HI, JSON.stringify(state.schemaHi));
   localStorage.setItem(K_VERSE_BLOCK_ORDER, JSON.stringify(state.verseBlockOrder));
   localStorage.setItem(K_USE_BIBLE_COM_EN, JSON.stringify(state.useBibleComEn));
-  localStorage.setItem(K_USE_BIBLE_COM_HI, JSON.stringify(state.useBibleComHi));
+  localStorage.setItem(
+    K_USE_BIBLE_COM_HI,
+    JSON.stringify(state.hindiSourceId === "biblecom"),
+  );
+  localStorage.setItem(K_HINDI_SOURCE, state.hindiSourceId);
   localStorage.setItem(
     K_ENGLISH_SQLITE_VERSION,
     state.englishSqliteVersionId,

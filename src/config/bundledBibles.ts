@@ -24,8 +24,16 @@ export async function fetchSqliteArrayBuffer(
   try {
     const res = await fetch(url, { signal, cache: "no-cache" });
     if (!res.ok) return null;
-    return res.arrayBuffer();
+    const buf = await res.arrayBuffer();
+    if (!isSqliteFile(buf)) return null;
+    return buf;
   } catch {
     return null;
   }
+}
+
+function isSqliteFile(buf: ArrayBuffer): boolean {
+  if (buf.byteLength < 16) return false;
+  const header = new TextDecoder().decode(new Uint8Array(buf, 0, 15));
+  return header === "SQLite format 3";
 }
