@@ -105,6 +105,18 @@ export class ExportRasterHost {
     });
   }
 
+  getTypographyForPage(page: VersePage, variant: ExportVariant): TypographySpec {
+    const props = this.props;
+    if (!props) throw new Error("Export raster host props are not set");
+    return variant === "live"
+      ? mergePageTypography(props.typography, page, "typographySizes")
+      : mergePageTypography(
+          props.resolumeTypography,
+          page,
+          "resolumeTypographySizes",
+        );
+  }
+
   getSnapshotNode(variant: ExportVariant): HTMLDivElement {
     const host = this.hosts[variant];
     if (!host) throw new Error("Export raster host is not mounted");

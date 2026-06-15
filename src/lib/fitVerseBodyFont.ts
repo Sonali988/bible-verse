@@ -53,6 +53,7 @@ function measureBox(): HTMLDivElement {
       boxSizing: "border-box",
       overflow: "hidden",
       fontWeight: "500",
+      fontSynthesis: "none",
       whiteSpace: "normal",
       wordBreak: "break-word",
       overflowWrap: "break-word",

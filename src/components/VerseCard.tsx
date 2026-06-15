@@ -16,7 +16,7 @@ import {
 } from "../lib/verseBlockOrder";
 import { formatHindiReference, formatReference } from "../lib/referenceParser";
 import { highlightSegments } from "../lib/highlightSegments";
-import { verseBodyEdgePadding } from "../lib/verseBoxStyle";
+import { verseBodyEdgePadding, liveHindiTitleEdgePadding } from "../lib/verseBoxStyle";
 
 export type VerseCardProps = {
   layout: LayoutSpec;
@@ -178,10 +178,14 @@ export function VerseCard({
               <div key={kind} style={rowOuter(padTop)}>
                 <div style={{ width: rect.x, flexShrink: 0 }} aria-hidden />
                 <div
+                  lang="hi"
+                  className="verse-body-box"
                   style={{
                     ...sectionBox(rect),
+                    ...liveHindiTitleEdgePadding(typography.titleFontPxHi),
                     fontFamily: typography.fontFamilyHi,
                     fontSize: typography.titleFontPxHi,
+                    lineHeight: 1.35,
                     fontWeight: 600,
                     fontStyle: "normal",
                     color: typography.titleColor,
