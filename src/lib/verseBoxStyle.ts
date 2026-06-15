@@ -33,6 +33,21 @@ export function verseBodyEdgePadding(
   };
 }
 
+/** Live card Hindi title — extra bottom inset for below-baseline matras (ु, ू, etc.). */
+export function liveHindiTitleEdgePadding(
+  fontSizePx: number,
+): Pick<CSSProperties, "paddingTop" | "paddingBottom" | "paddingLeft" | "paddingRight"> {
+  const top = Math.max(4, Math.round(fontSizePx * 0.1));
+  const bottom = Math.max(12, Math.round(fontSizePx * 0.32));
+  const h = Math.max(2, Math.round(fontSizePx * 0.04));
+  return {
+    paddingTop: top,
+    paddingBottom: bottom,
+    paddingLeft: h,
+    paddingRight: h,
+  };
+}
+
 /** Resolume combined title row — extra vertical inset for Devanagari matras. */
 export function resolumeTitleEdgePadding(
   titleFontPxHi: number,

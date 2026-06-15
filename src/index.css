@@ -1080,6 +1080,10 @@ textarea {
 }
 
 /* Extra room for bold / Devanagari glyphs inside overflow:hidden verse boxes */
+.verse-card-root {
+  font-synthesis: none;
+}
+
 .verse-body-box {
   -webkit-font-smoothing: antialiased;
 }
