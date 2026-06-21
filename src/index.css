@@ -62,15 +62,43 @@ body {
   }
 }
 
-.app-header__top {
+.app-header__layout {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
+.app-header__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-header__brand {
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  min-width: 0;
   margin-bottom: 0.35rem;
 }
 
-.app-header__top h1 {
+.app-header__brand h1 {
   margin: 0;
+}
+
+.app-header__logo-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+}
+
+.app-header__logo {
+  height: 100%;
+  width: auto;
+  max-width: min(8.5rem, 13vw);
+  object-fit: contain;
+  border-radius: var(--radius-sm);
 }
 
 .sidebar-toggle {
@@ -358,6 +386,24 @@ h2 {
   align-items: center;
   gap: 0.5rem;
   margin-top: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .app-header__layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .app-header__logo-wrap {
+    order: -1;
+    justify-content: center;
+    max-height: 8rem;
+  }
+
+  .app-header__logo {
+    height: 8rem;
+    max-width: 100%;
+  }
 }
 
 .sub {
@@ -1220,9 +1266,11 @@ textarea {
 
 .export-hidden-host {
   position: fixed;
-  left: -12000px;
+  left: -10000px;
   top: 0;
+  overflow: visible;
   pointer-events: none;
+  z-index: -1;
 }
 
 /* —— Card edit toolbar (form controls inside .panel) —— */

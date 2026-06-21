@@ -719,12 +719,12 @@ export default function App({
     exportProgressStore.setImmediate(tracker.preparing());
     let completed = 0;
     try {
-      const ctx = await prepareExportBatch(host, variant, list[0]!);
+      const layoutSize = await prepareExportBatch(host, variant, list[0]!);
       for (let i = 0; i < list.length; i++) {
         const p = list[i]!;
         exportProgressStore.set(tracker.rendering(i, formatReference(p.ref)));
         const t0 = performance.now();
-        const blob = await capturePngBlob(host, p, variant, ctx);
+        const blob = await capturePngBlob(host, p, variant, layoutSize);
         tracker.recordRender(performance.now() - t0);
         await onBlob(p, blob);
         completed = i + 1;
@@ -967,71 +967,83 @@ export default function App({
   return (
     <>
       <header className="app-header">
-        <div className="app-header__top">
-          <button
-            type="button"
-            className="sidebar-toggle"
-            aria-label={sidebarOpen ? "Hide data panel" : "Show data panel"}
-            aria-expanded={sidebarOpen}
-            aria-controls={sidebarId}
-            onClick={() => setSidebarOpen((open) => !open)}
-          >
-            <span className="sidebar-toggle__bars" aria-hidden />
-          </button>
-          <h1>Bible verse cards</h1>
-        </div>
-        <p className="sub">
-          Parallel {providerEn.versionLabel} + {providerHi.versionLabel}. Open the menu for
-          databases and background, build a queue, then use <strong>Edit card layout</strong> when
-          you need the design panel.
-        </p>
-        <div className="app-header__meta">
-          <span className="chip">
-            {pages.length} {pages.length === 1 ? "card" : "cards"} in queue
-          </span>
-          {selected && (
-            <span className="chip chip--accent">{formatReference(selected.ref)}</span>
-          )}
-          {sharedStorage && (
-            <>
-              <span className="chip">Shared workspace</span>
-              {sharedSaveState === "saving" && (
-                <span className="chip">Saving…</span>
+        <div className="app-header__layout">
+          <div className="app-header__main">
+            <div className="app-header__brand">
+              <button
+                type="button"
+                className="sidebar-toggle"
+                aria-label={sidebarOpen ? "Hide data panel" : "Show data panel"}
+                aria-expanded={sidebarOpen}
+                aria-controls={sidebarId}
+                onClick={() => setSidebarOpen((open) => !open)}
+              >
+                <span className="sidebar-toggle__bars" aria-hidden />
+              </button>
+              <h1>Bible verse cards</h1>
+            </div>
+            <p className="sub">
+              Parallel {providerEn.versionLabel} + {providerHi.versionLabel}. Open the menu for
+              databases and background, build a queue, then use <strong>Edit card layout</strong> when
+              you need the design panel.
+            </p>
+            <div className="app-header__meta">
+              <span className="chip">
+                {pages.length} {pages.length === 1 ? "card" : "cards"} in queue
+              </span>
+              {selected && (
+                <span className="chip chip--accent">{formatReference(selected.ref)}</span>
               )}
-              {sharedSaveState === "saved" && (
-                <span className="chip">Saved for everyone</span>
+              {sharedStorage && (
+                <>
+                  <span className="chip">Shared workspace</span>
+                  {sharedSaveState === "saving" && (
+                    <span className="chip">Saving…</span>
+                  )}
+                  {sharedSaveState === "saved" && (
+                    <span className="chip">Saved for everyone</span>
+                  )}
+                  {sharedSaveState === "error" && (
+                    <span className="chip chip--warn">Save failed</span>
+                  )}
+                  {onReloadShared && (
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => void onReloadShared()}
+                    >
+                      Refresh cards
+                    </button>
+                  )}
+                </>
               )}
-              {sharedSaveState === "error" && (
-                <span className="chip chip--warn">Save failed</span>
-              )}
-              {onReloadShared && (
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => void onReloadShared()}
-                >
-                  Refresh cards
-                </button>
-              )}
-            </>
-          )}
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={() => setSidebarOpen(true)}
-          >
-            Data &amp; background
-          </button>
-          <button
-            type="button"
-            className={
-              editRailOpen ? "btn btn--sm" : "btn btn--ghost btn--sm"
-            }
-            aria-expanded={editRailOpen}
-            onClick={() => setEditRailOpen((open) => !open)}
-          >
-            {editRailOpen ? "Hide edit panel" : "Edit card layout"}
-          </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => setSidebarOpen(true)}
+              >
+                Data &amp; background
+              </button>
+              <button
+                type="button"
+                className={
+                  editRailOpen ? "btn btn--sm" : "btn btn--ghost btn--sm"
+                }
+                aria-expanded={editRailOpen}
+                onClick={() => setEditRailOpen((open) => !open)}
+              >
+                {editRailOpen ? "Hide edit panel" : "Edit card layout"}
+              </button>
+            </div>
+          </div>
+          <div className="app-header__logo-wrap">
+            <img
+              className="app-header__logo"
+              src="/logo.jpeg"
+              alt=""
+              decoding="async"
+            />
+          </div>
         </div>
       </header>
 
