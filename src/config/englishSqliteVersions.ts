@@ -25,8 +25,6 @@ export const ENGLISH_SQLITE_VERSIONS: readonly EnglishSqliteVersion[] = [
   { id: "tpt", label: "TPT", bundledFile: "tpt.sqlite", youVersionBibleId: 1849 },
 ] as const;
 
-export const ENGLISH_SQLITE_VERSIONS_IN_UI = ENGLISH_SQLITE_VERSIONS;
-
 export const DEFAULT_ENGLISH_SQLITE_VERSION_ID: EnglishSqliteVersionId = "nkjv";
 
 const BY_ID = new Map(

@@ -69,9 +69,6 @@ export type PageTypographyOverrides = Partial<
   >
 >;
 
-/** @deprecated Use {@link PageTypographyOverrides}. */
-export type PageTypographySizeOverrides = PageTypographyOverrides;
-
 export type VersePage = {
   id: string;
   ref: VerseRef;

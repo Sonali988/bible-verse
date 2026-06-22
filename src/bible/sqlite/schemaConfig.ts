@@ -31,25 +31,3 @@ export const defaultSqliteSchema = (): SqliteSchemaConfig => ({
   textColumn: "text",
   bookIsNumeric: true,
 });
-
-/** scrollmapper / many GitHub Bible SQLite exports */
-export const scrollmapperStyleSchema = (): SqliteSchemaConfig => ({
-  verseTable: "verses",
-  bookColumn: "book_id",
-  chapterColumn: "chapter",
-  verseColumn: "verse",
-  textColumn: "text",
-  bookIsNumeric: true,
-  bookTable: "books",
-  bookTableIdColumn: "id",
-  bookTableNameColumn: "name",
-});
-
-export const openlpStyleSchema = (): SqliteSchemaConfig => ({
-  verseTable: "verse",
-  bookColumn: "book_id",
-  chapterColumn: "chapter",
-  verseColumn: "verse",
-  textColumn: "text",
-  bookIsNumeric: true,
-});

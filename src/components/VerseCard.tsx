@@ -99,8 +99,8 @@ export function VerseCard({
     <div
       className="verse-card-root"
       style={{
-        width: "100%",
-        height: "100%",
+        width: layout.width,
+        height: layout.height,
         display: "grid",
         gridTemplateColumns: "1fr",
         gridTemplateRows: "1fr",

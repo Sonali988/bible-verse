@@ -45,7 +45,7 @@ export function PageQueuePanel({
         <div>
           <h2>Page queue</h2>
           <p className="hint page-queue-panel__hint">
-            Chip strip below — click a reference to open highlight editing.
+            Click a reference to open highlight editing.
           </p>
         </div>
         <div className="page-queue-panel__head-actions">

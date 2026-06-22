@@ -1,9 +1,8 @@
-import { getFontEmbedCSS, toBlob } from "html-to-image";
+import { toBlob } from "html-to-image";
 
 export type PngLayoutSize = { width: number; height: number };
 
 export type RenderPngOptions = {
-  /** Reuse across a batch so fonts are not re-downloaded for every page. */
   fontEmbedCSS?: string;
 };
 
@@ -14,14 +13,18 @@ const RASTER_OPTIONS = {
   preferredFontFormat: "woff2" as const,
 };
 
-/** Embed webfonts once per export batch (pair with `fontEmbedCSS` on each capture). */
-export async function prefetchFontEmbedCss(node: HTMLElement): Promise<string> {
-  return getFontEmbedCSS(node, { preferredFontFormat: RASTER_OPTIONS.preferredFontFormat });
-}
-
 /** Forces layout so DOM updates are visible before rasterising. */
 export function forceLayout(node: HTMLElement): void {
   void node.offsetWidth;
+}
+
+/** Wait two animation frames so React layout and fonts paint before rasterising. */
+export function waitForPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
 }
 
 /** Ensures background `<img>` elements are decoded before rasterising. */
