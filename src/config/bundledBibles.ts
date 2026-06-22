@@ -1,8 +1,3 @@
-import {
-  bundledEnglishSqliteUrl,
-  DEFAULT_ENGLISH_SQLITE_VERSION_ID,
-} from "./englishSqliteVersions";
-
 function defaultBundledHiPath(): string {
   const base = import.meta.env.BASE_URL || "/";
   const pathBase = base.startsWith("/") ? base : `/${base}`;
@@ -10,12 +5,8 @@ function defaultBundledHiPath(): string {
   return `${withSlash}bibles/bsiov.sqlite`.replace(/([^:]\/)\/+/g, "$1");
 }
 
-/** Default English bundled URL (NKJV). Prefer `bundledEnglishSqliteUrl(id)`. */
-export const BUNDLED_SQLITE_URLS = {
-  en: bundledEnglishSqliteUrl(DEFAULT_ENGLISH_SQLITE_VERSION_ID),
-  hi:
-    import.meta.env.VITE_BUNDLED_HI_SQLITE_URL ?? defaultBundledHiPath(),
-} as const;
+export const BUNDLED_HI_SQLITE_URL =
+  import.meta.env.VITE_BUNDLED_HI_SQLITE_URL ?? defaultBundledHiPath();
 
 export async function fetchSqliteArrayBuffer(
   url: string,

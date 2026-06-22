@@ -6,9 +6,8 @@ import {
   formatExportDuration,
 } from "../export/exportProgress";
 import { exportProgressStore } from "../export/exportProgressStore";
+import type { ExportVariant } from "../export/exportVariant";
 import { formatReference } from "../lib/referenceParser";
-
-export type ExportVariant = "live" | "resolume";
 
 type Props = {
   open: boolean;

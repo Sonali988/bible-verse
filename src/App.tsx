@@ -5,7 +5,7 @@ import {
   defaultSqliteSchema,
   type SqliteSchemaConfig,
 } from "./bible/sqlite/schemaConfig";
-import { EmptyBibleProvider } from "./bible/StaticJsonProvider";
+import { EmptyBibleProvider } from "./bible/EmptyBibleProvider";
 import { BibleComProvider } from "./bible/bibleCom/BibleComProvider";
 import { BIBLE_COM_HI } from "./bible/bibleCom/config";
 import { YouVersionProvider } from "./bible/youversion/YouVersionProvider";
@@ -34,6 +34,7 @@ import { ResolumeVerseCard } from "./components/ResolumeVerseCard";
 import { DesignToolbar } from "./components/DesignToolbar";
 import { CardPreviewTypographyControls } from "./components/CardPreviewTypographyControls";
 import { CollapsiblePanel } from "./components/CollapsiblePanel";
+import { SqliteUploadModal } from "./components/SqliteUploadModal";
 import { capturePngBlob, prepareExportBatch } from "./export/batchExport";
 import { savePng, zipBlobs } from "./export/downloadZip";
 import { ExportRasterHost } from "./export/ExportRasterHost";
@@ -57,12 +58,12 @@ import type { VerseBlockOrder } from "./lib/verseBlockOrder";
 import { computeAutoFitBodyFontOverrides } from "./lib/fitVerseBodyFont";
 import { VerseOrderControl } from "./components/VerseOrderControl";
 import {
-  BUNDLED_SQLITE_URLS,
+  BUNDLED_HI_SQLITE_URL,
   fetchSqliteArrayBuffer,
 } from "./config/bundledBibles";
 import {
   bundledEnglishSqliteUrl,
-  ENGLISH_SQLITE_VERSIONS_IN_UI,
+  ENGLISH_SQLITE_VERSIONS,
   englishSqliteVersion,
   englishVersionUsesYouVersion,
   normalizeEnglishSqliteVersionId,
@@ -211,6 +212,9 @@ export default function App({
   const [hiBundledLoading, setHiBundledLoading] = useState(false);
   const [sqliteFileErr, setSqliteFileErr] = useState<string | null>(null);
   const [sqliteLoadNote, setSqliteLoadNote] = useState<string | null>(null);
+  const [sqliteUploadLang, setSqliteUploadLang] = useState<"en" | "hi" | null>(
+    null,
+  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editRailOpen, setEditRailOpen] = useState(false);
   const [workflowVariant, setWorkflowVariant] = useState<ExportVariant>("live");
@@ -394,7 +398,7 @@ export default function App({
     const schemaHiBoot = defaultSqliteSchema();
     setHiBundledLoading(true);
     void (async () => {
-      const bufHi = await fetchSqliteArrayBuffer(BUNDLED_SQLITE_URLS.hi, ac.signal);
+      const bufHi = await fetchSqliteArrayBuffer(BUNDLED_HI_SQLITE_URL, ac.signal);
       if (!isCurrentLoad() || ac.signal.aborted) return;
 
       if (bufHi) {
@@ -434,7 +438,7 @@ export default function App({
         hindiSourceUsesSqlite(hindiSourceId)
       ) {
         setSqliteFileErr(
-          `Could not load Hindi from ${BUNDLED_SQLITE_URLS.hi}. Add public/bibles/bsiov.sqlite or use the file picker.`,
+          `Could not load Hindi from ${BUNDLED_HI_SQLITE_URL}. Add public/bibles/bsiov.sqlite or use the file picker.`,
         );
       }
 
@@ -809,9 +813,9 @@ export default function App({
           p.id !== selectedId
             ? p
             : {
-                ...p,
-                [sizesKey]: { ...p[sizesKey], ...patch },
-              },
+              ...p,
+              [sizesKey]: { ...p[sizesKey], ...patch },
+            },
         ),
       );
     },
@@ -923,11 +927,6 @@ export default function App({
               </button>
               <h1>Bible verse cards</h1>
             </div>
-            <p className="sub">
-              Parallel {providerEn.versionLabel} + {providerHi.versionLabel}. Open the menu for
-              databases and background, build a queue, then use <strong>Edit card layout</strong> when
-              you need the design panel.
-            </p>
             <div className="app-header__meta">
               <span className="chip">
                 {pages.length} {pages.length === 1 ? "card" : "cards"} in queue
@@ -975,12 +974,15 @@ export default function App({
               >
                 {editRailOpen ? "Hide edit panel" : "Edit card layout"}
               </button>
+              <span className="chip">
+                Currently selected {providerEn.versionLabel} + {providerHi.versionLabel}
+              </span>
             </div>
           </div>
           <div className="app-header__logo-wrap">
             <img
               className="app-header__logo"
-              src="/logo.jpeg"
+              src="/logo.png"
               alt=""
               decoding="async"
             />
@@ -1009,7 +1011,7 @@ export default function App({
           }
           aria-label="Data sources"
           aria-hidden={!sidebarOpen}
-          >
+        >
           <div className="app-sidebar__chrome">
             <h2 className="app-sidebar__title">Data panel</h2>
             <button
@@ -1022,122 +1024,117 @@ export default function App({
             </button>
           </div>
           <div className="app-sidebar__scroll">
-      <section className="panel panel--sidebar">
-        <h2>Background</h2>
-        <label>
-          Card background image
-          <input type="file" accept="image/*" onChange={(e) => onBgFile(e.target.files?.[0] ?? null)} />
-        </label>
-        {bgSaveWarning && <p className="warn">{bgSaveWarning}</p>}
-        <p className="hint">
-          Saved in this browser. Cards use the default color when no image is set.
-        </p>
-      </section>
+            <section className="panel panel--sidebar">
+              <h2>Background</h2>
+              <label>
+                Card background image
+                <input type="file" accept="image/*" onChange={(e) => onBgFile(e.target.files?.[0] ?? null)} />
+              </label>
+              {bgSaveWarning && <p className="warn">{bgSaveWarning}</p>}
+              <p className="hint">
+                Saved in this browser. Cards use the default color when no image is set.
+              </p>
+            </section>
 
-      <section className="panel panel--sidebar">
-        <h2>Bible sources</h2>
-        {bundledStatus === "loading" && (
-          <p className="muted">Loading bundled databases…</p>
-        )}
-        {(bundledStatus === "loaded" || bundledStatus === "partial") && (
-          <ul className="data-source-status">
-            <li>
-              English:{" "}
-              {englishUsesYouVersion ? (
-                <span>{englishLabel} (YouVersion)</span>
-              ) : sqliteEnActive ? (
-                <span>{englishLabel} ready</span>
-              ) : enBundledLoading ? (
-                <span className="muted">Loading…</span>
-              ) : (
-                <span className="muted">Not loaded</span>
+            <section className="panel panel--sidebar">
+              <h2>Bible sources</h2>
+              {bundledStatus === "loading" && (
+                <p className="muted">Loading bundled databases…</p>
               )}
-            </li>
-            <li>
-              Hindi:{" "}
-              {hindiSourceUsesYouVersion(hindiSourceId) ? (
-                <span>{hindiLabel} (YouVersion)</span>
-              ) : hindiSourceUsesBibleCom(hindiSourceId) ? (
-                <span>{hindiLabel} (Bible.com)</span>
-              ) : sqliteHiActive ? (
-                <span>{hindiLabel} ready</span>
-              ) : hiBundledLoading ? (
-                <span className="muted">Loading…</span>
-              ) : (
-                <span className="muted">Not loaded</span>
+              {(bundledStatus === "loaded" || bundledStatus === "partial") && (
+                <ul className="data-source-status">
+                  <li>
+                    English:{" "}
+                    {englishUsesYouVersion ? (
+                      <span>{englishLabel} (YouVersion)</span>
+                    ) : sqliteEnActive ? (
+                      <span>{englishLabel} ready</span>
+                    ) : enBundledLoading ? (
+                      <span className="muted">Loading…</span>
+                    ) : (
+                      <span className="muted">Not loaded</span>
+                    )}
+                  </li>
+                  <li>
+                    Hindi:{" "}
+                    {hindiSourceUsesYouVersion(hindiSourceId) ? (
+                      <span>{hindiLabel} (YouVersion)</span>
+                    ) : hindiSourceUsesBibleCom(hindiSourceId) ? (
+                      <span>{hindiLabel} (Bible.com)</span>
+                    ) : sqliteHiActive ? (
+                      <span>{hindiLabel} ready</span>
+                    ) : hiBundledLoading ? (
+                      <span className="muted">Loading…</span>
+                    ) : (
+                      <span className="muted">Not loaded</span>
+                    )}
+                  </li>
+                </ul>
               )}
-            </li>
-          </ul>
-        )}
-        {bundledStatus === "missing" && (
-          <p className="hint">
-            Choose a translation below or upload your own <code>.sqlite</code> file.
-          </p>
-        )}
-        <div className="grid2 data-source-grid">
-          <div className="bible-source-column">
-            <label>
-              English
-              <select
-                value={englishVersionId}
-                onChange={(e) =>
-                  setEnglishVersionId(
-                    normalizeEnglishSqliteVersionId(e.target.value),
-                  )
-                }
-              >
-                {ENGLISH_SQLITE_VERSIONS_IN_UI.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.label}
-                    {v.youVersionBibleId != null ? " (YouVersion)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Upload English SQLite
-              <input
-                type="file"
-                accept=".sqlite,.db,application/x-sqlite3,*/*"
-                disabled={englishUsesYouVersion}
-                onChange={(e) =>
-                  void loadSqlite(e.target.files?.[0] ?? null, "en")
-                }
-              />
-            </label>
-          </div>
-          <div className="bible-source-column">
-            <label>
-              Hindi
-              <select
-                value={hindiSourceId}
-                onChange={(e) =>
-                  setHindiSourceId(normalizeHindiSourceId(e.target.value))
-                }
-              >
-                {HINDI_SOURCES.map((source) => (
-                  <option key={source.id} value={source.id}>
-                    {source.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Upload Hindi SQLite
-              <input
-                type="file"
-                accept=".sqlite,.db,application/x-sqlite3,*/*"
-                disabled={!hindiSourceUsesSqlite(hindiSourceId)}
-                onChange={(e) =>
-                  void loadSqlite(e.target.files?.[0] ?? null, "hi")
-                }
-              />
-            </label>
-          </div>
-        </div>
-        {sqliteFileErr && <p className="error">{sqliteFileErr}</p>}
-        {sqliteLoadNote && <p className="muted">{sqliteLoadNote}</p>}
-      </section>
+              {bundledStatus === "missing" && (
+                <p className="hint">
+                  Choose a translation below. Use <strong>Upload SQLite</strong> only if
+                  you need a custom database file.
+                </p>
+              )}
+              <div className="grid2 data-source-grid">
+                <div className="bible-source-column">
+                  <label>
+                    English
+                    <select
+                      value={englishVersionId}
+                      onChange={(e) =>
+                        setEnglishVersionId(
+                          normalizeEnglishSqliteVersionId(e.target.value),
+                        )
+                      }
+                    >
+                      {ENGLISH_SQLITE_VERSIONS.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.label}
+                          {v.youVersionBibleId != null ? " (YouVersion)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm bible-source-column__upload"
+                    disabled={englishUsesYouVersion}
+                    onClick={() => setSqliteUploadLang("en")}
+                  >
+                    Upload SQLite…
+                  </button>
+                </div>
+                <div className="bible-source-column">
+                  <label>
+                    Hindi
+                    <select
+                      value={hindiSourceId}
+                      onChange={(e) =>
+                        setHindiSourceId(normalizeHindiSourceId(e.target.value))
+                      }
+                    >
+                      {HINDI_SOURCES.map((source) => (
+                        <option key={source.id} value={source.id}>
+                          {source.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm bible-source-column__upload"
+                    disabled={!hindiSourceUsesSqlite(hindiSourceId)}
+                    onClick={() => setSqliteUploadLang("hi")}
+                  >
+                    Upload SQLite…
+                  </button>
+                </div>
+              </div>
+              {sqliteFileErr && <p className="error">{sqliteFileErr}</p>}
+              {sqliteLoadNote && <p className="muted">{sqliteLoadNote}</p>}
+            </section>
           </div>
           <div className="app-sidebar__foot">
             <button
@@ -1158,341 +1155,358 @@ export default function App({
           }
         >
           <div className="app-content__main">
-      <div className="workflow-block">
-        <p className="workflow-heading">1 · Build your queue</p>
+            <div className="workflow-block">
+              <p className="workflow-heading">1 · Build your queue</p>
 
-      <ReferencePicker
-        providerEn={providerEn}
-        providerHi={providerHi}
-        onPreview={onPreview}
-      />
+              <ReferencePicker
+                providerEn={providerEn}
+                providerHi={providerHi}
+                onPreview={onPreview}
+              />
 
-      {draft && draft.length > 0 && (
-        <section className="panel verse-draft" aria-label="Verse draft (read-only)">
-          <div className="verse-draft__head">
-            <div>
-              <h2 className="verse-draft__title">
-                {draft.length === 1 ? "Verse draft" : `Verse draft (${draft.length})`}
-              </h2>
-              <p className="hint verse-draft__hint">
-                Review fetched text before adding to the queue. Each verse becomes its
-                own card. This section is not editable.
-              </p>
+              {draft && draft.length > 0 && (
+                <section className="panel verse-draft" aria-label="Verse draft (read-only)">
+                  <div className="verse-draft__head">
+                    <div>
+                      <h2 className="verse-draft__title">
+                        {draft.length === 1 ? "Verse draft" : `Verse draft (${draft.length})`}
+                      </h2>
+                      <p className="hint verse-draft__hint">
+                        Review fetched text before adding to the queue. Each verse becomes its
+                        own card. This section is not editable.
+                      </p>
+                    </div>
+                    <span className="verse-draft__badge">Read-only</span>
+                  </div>
+                  <div className="verse-draft__entries">
+                    {draft.map((item) => (
+                      <article
+                        key={`${item.ref.bookId}-${item.ref.chapter}-${item.ref.verse}`}
+                        className="verse-draft__entry"
+                      >
+                        <h3 className="verse-draft__entry-ref">
+                          {formatReference(item.ref)}
+                        </h3>
+                        <div className="verse-draft__body">
+                          <div className="verse-draft__col">
+                            <span className="verse-draft__label">{hindiLabel}</span>
+                            <p className="verse-draft__text">{item.textHi}</p>
+                          </div>
+                          <div className="verse-draft__col">
+                            <span className="verse-draft__label">{englishLabel}</span>
+                            <p className="verse-draft__text">{item.textEn}</p>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                  <div className="verse-draft__actions">
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => void addPage()}
+                    >
+                      {draft.length === 1
+                        ? "Add to page queue"
+                        : `Add ${draft.length} cards to queue`}
+                    </button>
+                  </div>
+                </section>
+              )}
+
+              <PageQueuePanel
+                pages={pages}
+                selectedId={selectedId}
+                selected={selected}
+                onSelect={(id) => selectPage(id, "both")}
+                onRemove={(id) => {
+                  setPages((xs) => xs.filter((x) => x.id !== id));
+                  if (selectedId === id) setSelectedId(null);
+                }}
+                onRemoveAll={() => {
+                  setPages([]);
+                  setSelectedId(null);
+                }}
+                exportBusy={exportBusy}
+                onOpenExport={() => setExportModalOpen(true)}
+                onUpdateHighlights={updateSelectedHighlights}
+                onUpdateText={updateSelectedText}
+                labelEn={englishLabel}
+                labelHi={hindiLabel}
+              />
             </div>
-            <span className="verse-draft__badge">Read-only</span>
-          </div>
-          <div className="verse-draft__entries">
-            {draft.map((item) => (
-              <article
-                key={`${item.ref.bookId}-${item.ref.chapter}-${item.ref.verse}`}
-                className="verse-draft__entry"
-              >
-                <h3 className="verse-draft__entry-ref">
-                  {formatReference(item.ref)}
-                </h3>
-                <div className="verse-draft__body">
-                  <div className="verse-draft__col">
-                    <span className="verse-draft__label">{hindiLabel}</span>
-                    <p className="verse-draft__text">{item.textHi}</p>
-                  </div>
-                  <div className="verse-draft__col">
-                    <span className="verse-draft__label">{englishLabel}</span>
-                    <p className="verse-draft__text">{item.textEn}</p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-          <div className="verse-draft__actions">
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => void addPage()}
-            >
-              {draft.length === 1
-                ? "Add to page queue"
-                : `Add ${draft.length} cards to queue`}
-            </button>
-          </div>
-        </section>
-      )}
 
-      <PageQueuePanel
-        pages={pages}
-        selectedId={selectedId}
-        selected={selected}
-        onSelect={(id) => selectPage(id, "both")}
-        onRemove={(id) => {
-          setPages((xs) => xs.filter((x) => x.id !== id));
-          if (selectedId === id) setSelectedId(null);
-        }}
-        onRemoveAll={() => {
-          setPages([]);
-          setSelectedId(null);
-        }}
-        exportBusy={exportBusy}
-        onOpenExport={() => setExportModalOpen(true)}
-        onUpdateHighlights={updateSelectedHighlights}
-        onUpdateText={updateSelectedText}
-        labelEn={englishLabel}
-        labelHi={hindiLabel}
-      />
-      </div>
+            <div className="workflow-block">
+              <p className="workflow-heading">2 · Preview</p>
 
-      <div className="workflow-block">
-        <p className="workflow-heading">2 · Preview</p>
+              <p className="hint workflow-tabs-hint">
+                {editRailOpen ? (
+                  <>
+                    Card layout and fonts are in the <strong>Edit card</strong> panel on the
+                    right. Click a preview card to adjust per-card font sizes below each strip.
+                  </>
+                ) : (
+                  <>
+                    Use <strong>Edit card layout</strong> in the header to open the design panel.
+                    Click a preview card to adjust per-card font sizes below each strip.
+                  </>
+                )}
+              </p>
 
-        <p className="hint workflow-tabs-hint">
-          {editRailOpen ? (
-            <>
-              Card layout and fonts are in the <strong>Edit card</strong> panel on the
-              right. Click a preview card to adjust per-card font sizes below each strip.
-            </>
-          ) : (
-            <>
-              Use <strong>Edit card layout</strong> in the header to open the design panel.
-              Click a preview card to adjust per-card font sizes below each strip.
-            </>
-          )}
-        </p>
-
-        {pages.length > 0 ? (
-          <div className="preview-dual-stack">
-            <CollapsiblePanel
-              title="Card preview — Live"
-              subtitle="Click a card to select · Live typography below"
-              defaultOpen
-            >
-          <div className="preview-cards-strip">
-            {pages.map((p) => (
-              <div key={p.id} className="preview-card-wrap">
-                <div
-                  id={`preview-card-${p.id}`}
-                  className={
-                    p.id === selectedId
-                      ? "preview-card-slot preview-card-slot--selected"
-                      : "preview-card-slot"
-                  }
-                  style={{
-                    width: previewScaledSize.w,
-                    height: previewScaledSize.h,
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  title={`Select ${formatReference(p.ref)}`}
-                  onClick={() => selectPage(p.id, "live")}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      selectPage(p.id, "live");
-                    }
-                  }}
-                >
-                  <div
-                    className="preview-scale-frame"
-                    style={{
-                      width: cardLayout.width,
-                      height: cardLayout.height,
-                      transform: `scale(${previewScale})`,
-                      transformOrigin: "top left",
-                    }}
+              {pages.length > 0 ? (
+                <div className="preview-dual-stack">
+                  <CollapsiblePanel
+                    title="Card preview — Live"
+                    subtitle="Click a card to select · Live typography below"
+                    defaultOpen
                   >
-                    <div
-                      className="preview-scale-content"
-                      style={{
-                        width: cardLayout.width,
-                        height: cardLayout.height,
-                      }}
-                    >
-                      <VerseCard
-                        layout={cardLayout}
-                        typography={mergePageTypography(typography, p)}
-                        page={p}
-                        backgroundDataUrl={cardBackgroundUrl}
-                        versionLabelEn={p.versionLabelEn ?? englishLabel}
-                        versionLabelHi={p.versionLabelHi ?? hindiLabel}
-                        verseBlockOrder={verseBlockOrder}
-                      />
+                    <div className="preview-cards-strip">
+                      {pages.map((p) => (
+                        <div key={p.id} className="preview-card-wrap">
+                          <div
+                            id={`preview-card-${p.id}`}
+                            className={
+                              p.id === selectedId
+                                ? "preview-card-slot preview-card-slot--selected"
+                                : "preview-card-slot"
+                            }
+                            style={{
+                              width: previewScaledSize.w,
+                              height: previewScaledSize.h,
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            title={`Select ${formatReference(p.ref)}`}
+                            onClick={() => selectPage(p.id, "live")}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                selectPage(p.id, "live");
+                              }
+                            }}
+                          >
+                            <div
+                              className="preview-scale-frame"
+                              style={{
+                                width: cardLayout.width,
+                                height: cardLayout.height,
+                                transform: `scale(${previewScale})`,
+                                transformOrigin: "top left",
+                              }}
+                            >
+                              <div
+                                className="preview-scale-content"
+                                style={{
+                                  width: cardLayout.width,
+                                  height: cardLayout.height,
+                                }}
+                              >
+                                <VerseCard
+                                  layout={cardLayout}
+                                  typography={mergePageTypography(typography, p)}
+                                  page={p}
+                                  backgroundDataUrl={cardBackgroundUrl}
+                                  versionLabelEn={p.versionLabelEn ?? englishLabel}
+                                  versionLabelHi={p.versionLabelHi ?? hindiLabel}
+                                  verseBlockOrder={verseBlockOrder}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <p className="preview-card-caption">{formatReference(p.ref)}</p>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                </div>
-                <p className="preview-card-caption">{formatReference(p.ref)}</p>
-              </div>
-            ))}
-          </div>
 
-          <CardPreviewTypographyControls
-            previewLabel="Live"
-            typography={selectedLiveTypography}
-            enabled={Boolean(selected)}
-            onUpdate={(patch) =>
-              updatePageTypographyForSelected(patch, "typographySizes")
-            }
-          />
-              </CollapsiblePanel>
+                    <CardPreviewTypographyControls
+                      previewLabel="Live"
+                      typography={selectedLiveTypography}
+                      enabled={Boolean(selected)}
+                      onUpdate={(patch) =>
+                        updatePageTypographyForSelected(patch, "typographySizes")
+                      }
+                    />
+                  </CollapsiblePanel>
 
-            <CollapsiblePanel
-              title="Card preview — Resolume"
-              subtitle="Click a card to select · Resolume typography below"
-              defaultOpen
-            >
-          <div className="preview-cards-strip">
-            {pages.map((p) => (
-              <div key={`resolume-${p.id}`} className="preview-card-wrap">
-                <div
-                  id={`preview-card-resolume-${p.id}`}
-                  className={
-                    p.id === selectedId
-                      ? "preview-card-slot preview-card-slot--selected"
-                      : "preview-card-slot"
-                  }
-                  style={{
-                    width: previewScaledSizeResolume.w,
-                    height: previewScaledSizeResolume.h,
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  title={`Select ${formatReference(p.ref)}`}
-                  onClick={() => selectPage(p.id, "resolume")}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      selectPage(p.id, "resolume");
-                    }
-                  }}
-                >
-                  <div
-                    className="preview-scale-frame"
-                    style={{
-                      width: resolumeLayout.width,
-                      height: resolumeLayout.height,
-                      transform: `scale(${previewScaleResolume})`,
-                      transformOrigin: "top left",
-                    }}
+                  <CollapsiblePanel
+                    title="Card preview — Resolume"
+                    subtitle="Click a card to select · Resolume typography below"
+                    defaultOpen
                   >
-                    <div
-                      className="preview-scale-content"
-                      style={{
-                        width: resolumeLayout.width,
-                        height: resolumeLayout.height,
-                      }}
-                    >
-                      <ResolumeVerseCard
-                        layout={resolumeLayout}
-                        typography={mergePageTypography(
-                          resolumeTypography,
-                          p,
-                          "resolumeTypographySizes",
-                        )}
-                        page={p}
-                        backgroundDataUrl={cardBackgroundUrl}
-                        versionLabelEn={p.versionLabelEn ?? englishLabel}
-                        versionLabelHi={p.versionLabelHi ?? hindiLabel}
-                        verseBlockOrder={verseBlockOrder}
-                      />
+                    <div className="preview-cards-strip">
+                      {pages.map((p) => (
+                        <div key={`resolume-${p.id}`} className="preview-card-wrap">
+                          <div
+                            id={`preview-card-resolume-${p.id}`}
+                            className={
+                              p.id === selectedId
+                                ? "preview-card-slot preview-card-slot--selected"
+                                : "preview-card-slot"
+                            }
+                            style={{
+                              width: previewScaledSizeResolume.w,
+                              height: previewScaledSizeResolume.h,
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            title={`Select ${formatReference(p.ref)}`}
+                            onClick={() => selectPage(p.id, "resolume")}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                selectPage(p.id, "resolume");
+                              }
+                            }}
+                          >
+                            <div
+                              className="preview-scale-frame"
+                              style={{
+                                width: resolumeLayout.width,
+                                height: resolumeLayout.height,
+                                transform: `scale(${previewScaleResolume})`,
+                                transformOrigin: "top left",
+                              }}
+                            >
+                              <div
+                                className="preview-scale-content"
+                                style={{
+                                  width: resolumeLayout.width,
+                                  height: resolumeLayout.height,
+                                }}
+                              >
+                                <ResolumeVerseCard
+                                  layout={resolumeLayout}
+                                  typography={mergePageTypography(
+                                    resolumeTypography,
+                                    p,
+                                    "resolumeTypographySizes",
+                                  )}
+                                  page={p}
+                                  backgroundDataUrl={cardBackgroundUrl}
+                                  versionLabelEn={p.versionLabelEn ?? englishLabel}
+                                  versionLabelHi={p.versionLabelHi ?? hindiLabel}
+                                  verseBlockOrder={verseBlockOrder}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <p className="preview-card-caption">{formatReference(p.ref)}</p>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                </div>
-                <p className="preview-card-caption">{formatReference(p.ref)}</p>
-              </div>
-            ))}
-          </div>
 
-          <CardPreviewTypographyControls
-            previewLabel="Resolume"
-            typography={selectedResolumeTypography}
-            enabled={Boolean(selected)}
-            onUpdate={(patch) =>
-              updatePageTypographyForSelected(patch, "resolumeTypographySizes")
-            }
-          />
-              </CollapsiblePanel>
-          </div>
-        ) : (
-          <p className="muted">Add verses to the queue to preview cards.</p>
-        )}
-      </div>
+                    <CardPreviewTypographyControls
+                      previewLabel="Resolume"
+                      typography={selectedResolumeTypography}
+                      enabled={Boolean(selected)}
+                      onUpdate={(patch) =>
+                        updatePageTypographyForSelected(patch, "resolumeTypographySizes")
+                      }
+                    />
+                  </CollapsiblePanel>
+                </div>
+              ) : (
+                <p className="muted">Add verses to the queue to preview cards.</p>
+              )}
+            </div>
           </div>
 
           {editRailOpen && (
-          <aside className="app-edit-rail" aria-label="Edit card design">
-            <p className="workflow-heading app-edit-rail__heading">Edit card</p>
-            <section className="panel app-edit-rail__panel app-edit-rail__panel--order">
-              <VerseOrderControl
-                value={verseBlockOrder}
-                onChange={setVerseBlockOrder}
-              />
-            </section>
-            <div
-              className="variant-tabs"
-              role="tablist"
-              aria-label="Edit card variant"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={workflowVariant === "live"}
-                className={
-                  workflowVariant === "live"
-                    ? "variant-tab variant-tab--active"
-                    : "variant-tab"
-                }
-                onClick={() => setWorkflowVariant("live")}
+            <aside className="app-edit-rail" aria-label="Edit card design">
+              <p className="workflow-heading app-edit-rail__heading">Edit card</p>
+              <section className="panel app-edit-rail__panel app-edit-rail__panel--order">
+                <VerseOrderControl
+                  value={verseBlockOrder}
+                  onChange={setVerseBlockOrder}
+                />
+              </section>
+              <div
+                className="variant-tabs"
+                role="tablist"
+                aria-label="Edit card variant"
               >
-                Live
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={workflowVariant === "resolume"}
-                className={
-                  workflowVariant === "resolume"
-                    ? "variant-tab variant-tab--active"
-                    : "variant-tab"
-                }
-                onClick={() => setWorkflowVariant("resolume")}
-              >
-                Resolume
-              </button>
-            </div>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={workflowVariant === "live"}
+                  className={
+                    workflowVariant === "live"
+                      ? "variant-tab variant-tab--active"
+                      : "variant-tab"
+                  }
+                  onClick={() => setWorkflowVariant("live")}
+                >
+                  Live
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={workflowVariant === "resolume"}
+                  className={
+                    workflowVariant === "resolume"
+                      ? "variant-tab variant-tab--active"
+                      : "variant-tab"
+                  }
+                  onClick={() => setWorkflowVariant("resolume")}
+                >
+                  Resolume
+                </button>
+              </div>
 
-            <section className="panel app-edit-rail__panel">
-              {workflowVariant === "live" ? (
-                <>
-                  <h2 className="app-edit-rail__title">Live layout</h2>
-                  <p className="hint app-edit-rail__hint">
-                    Canvas, text boxes, and global fonts.
-                  </p>
-                  <DesignToolbar
-                    mode="live"
-                    layout={cardLayout}
-                    onUpdateLayout={updateCardLayout}
-                    typography={typography}
-                    onUpdateTypography={updateTypography}
-                    onResetDesign={resetCardDesign}
-                  />
-                </>
-              ) : (
-                <>
-                  <h2 className="app-edit-rail__title">Resolume layout</h2>
-                  <p className="hint app-edit-rail__hint">
-                    Combined title, verse boxes, and global fonts.
-                  </p>
-                  <DesignToolbar
-                    mode="resolume"
-                    layout={resolumeLayout}
-                    onUpdateLayout={updateResolumeLayout}
-                    typography={resolumeTypography}
-                    onUpdateTypography={updateResolumeTypography}
-                    onResetDesign={resetResolumeDesign}
-                  />
-                </>
-              )}
-            </section>
-          </aside>
+              <section className="panel app-edit-rail__panel">
+                {workflowVariant === "live" ? (
+                  <>
+                    <h2 className="app-edit-rail__title">Live layout</h2>
+                    <p className="hint app-edit-rail__hint">
+                      Canvas, text boxes, and global fonts.
+                    </p>
+                    <DesignToolbar
+                      mode="live"
+                      layout={cardLayout}
+                      onUpdateLayout={updateCardLayout}
+                      typography={typography}
+                      onUpdateTypography={updateTypography}
+                      onResetDesign={resetCardDesign}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <h2 className="app-edit-rail__title">Resolume layout</h2>
+                    <p className="hint app-edit-rail__hint">
+                      Combined title, verse boxes, and global fonts.
+                    </p>
+                    <DesignToolbar
+                      mode="resolume"
+                      layout={resolumeLayout}
+                      onUpdateLayout={updateResolumeLayout}
+                      typography={resolumeTypography}
+                      onUpdateTypography={updateResolumeTypography}
+                      onResetDesign={resetResolumeDesign}
+                    />
+                  </>
+                )}
+              </section>
+            </aside>
           )}
         </div>
       </div>
+
+      <SqliteUploadModal
+        open={sqliteUploadLang === "en"}
+        languageLabel="English"
+        disabled={englishUsesYouVersion}
+        disabledReason="Switch English to a SQLite translation before uploading a file."
+        onClose={() => setSqliteUploadLang(null)}
+        onFile={(file) => loadSqlite(file, "en")}
+      />
+      <SqliteUploadModal
+        open={sqliteUploadLang === "hi"}
+        languageLabel="Hindi"
+        disabled={!hindiSourceUsesSqlite(hindiSourceId)}
+        disabledReason="Select a SQLite Hindi translation before uploading a file."
+        onClose={() => setSqliteUploadLang(null)}
+        onFile={(file) => loadSqlite(file, "hi")}
+      />
 
       <ExportModal
         open={exportModalOpen}

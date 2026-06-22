@@ -36,14 +36,14 @@ const VERSE_TABLE_PATTERNS = [
   "chapter_verse",
 ] as const;
 
-export function listSqliteTables(db: Database): string[] {
+function listSqliteTables(db: Database): string[] {
   const res = db.exec(
     `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`,
   );
   return (res[0]?.values ?? []).map((row) => String(row[0]));
 }
 
-export function listSqliteColumns(db: Database, table: string): string[] {
+function listSqliteColumns(db: Database, table: string): string[] {
   const res = db.exec(`PRAGMA table_info(${quoteIdent(table)})`);
   return (res[0]?.values ?? []).map((row) => String(row[1]));
 }
@@ -123,7 +123,7 @@ function detectBookNameTable(
 }
 
 /** Best-effort mapping from common Bible SQLite layouts (OpenLP, scrollmapper, MySword-like). */
-export function detectSqliteSchema(db: Database): SqliteSchemaConfig | null {
+function detectSqliteSchema(db: Database): SqliteSchemaConfig | null {
   const tables = listSqliteTables(db);
   let best: { schema: SqliteSchemaConfig; score: number } | null = null;
   const bookMeta = detectBookNameTable(db, tables);
@@ -163,7 +163,7 @@ export function detectSqliteSchema(db: Database): SqliteSchemaConfig | null {
   return best?.schema ?? null;
 }
 
-export function schemaMatchesDatabase(
+function schemaMatchesDatabase(
   db: Database,
   schema: SqliteSchemaConfig,
 ): boolean {
@@ -220,7 +220,7 @@ export function resolveSqliteSchema(
   throw new Error(formatSchemaMismatchMessage(db, configured, detected));
 }
 
-export function formatSchemaMismatchMessage(
+function formatSchemaMismatchMessage(
   db: Database,
   configured: SqliteSchemaConfig,
   detected: SqliteSchemaConfig | null,
