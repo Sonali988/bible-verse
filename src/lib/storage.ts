@@ -36,7 +36,6 @@ const K_RESOLUME_TYPO = "bvc:resolumeTypography";
 const K_SCHEMA_EN = "bvc:schemaEn";
 const K_SCHEMA_HI = "bvc:schemaHi";
 const K_VERSE_BLOCK_ORDER = "bvc:verseBlockOrder";
-const K_USE_BIBLE_COM_EN = "bvc:useBibleComEn";
 const K_USE_BIBLE_COM_HI = "bvc:useBibleComHi";
 const K_HINDI_SOURCE = "bvc:hindiSourceId";
 const K_ENGLISH_SQLITE_VERSION = "bvc:englishSqliteVersionId";
@@ -51,7 +50,6 @@ export type PersistedState = {
   schemaEn: SqliteSchemaConfig;
   schemaHi: SqliteSchemaConfig;
   verseBlockOrder: VerseBlockOrder;
-  useBibleComEn: boolean;
   hindiSourceId: HindiSourceId;
   englishSqliteVersionId: EnglishSqliteVersionId;
 };
@@ -78,7 +76,6 @@ export function normalizePersisted(raw: {
   schemaEn?: unknown;
   schemaHi?: unknown;
   verseBlockOrder?: unknown;
-  useBibleComEn?: unknown;
   useBibleComHi?: unknown;
   hindiSourceId?: unknown;
   englishSqliteVersionId?: unknown;
@@ -129,9 +126,6 @@ export function normalizePersisted(raw: {
     raw.verseBlockOrder != null
       ? normalizeVerseBlockOrder(raw.verseBlockOrder)
       : undefined;
-  const useBibleComEn =
-    raw.useBibleComEn != null ? raw.useBibleComEn === true : undefined;
-
   return {
     pages: pages ?? undefined,
     cardLayout,
@@ -141,7 +135,6 @@ export function normalizePersisted(raw: {
     schemaEn: schemaEn ?? undefined,
     schemaHi: schemaHi ?? undefined,
     verseBlockOrder,
-    useBibleComEn,
     hindiSourceId,
     englishSqliteVersionId,
   };
@@ -201,7 +194,6 @@ export function loadPersisted(): Partial<PersistedState> {
       localStorage.getItem(K_SCHEMA_HI) ?? "null",
     ) as SqliteSchemaConfig | null;
     const verseBlockOrderRaw = localStorage.getItem(K_VERSE_BLOCK_ORDER);
-    const useBibleComEnRaw = localStorage.getItem(K_USE_BIBLE_COM_EN);
     const useBibleComHiRaw = localStorage.getItem(K_USE_BIBLE_COM_HI);
     const hindiSourceRaw = localStorage.getItem(K_HINDI_SOURCE);
 
@@ -218,8 +210,6 @@ export function loadPersisted(): Partial<PersistedState> {
         verseBlockOrderRaw != null
           ? JSON.parse(verseBlockOrderRaw)
           : undefined,
-      useBibleComEn:
-        useBibleComEnRaw != null ? JSON.parse(useBibleComEnRaw) : undefined,
       useBibleComHi:
         useBibleComHiRaw != null ? JSON.parse(useBibleComHiRaw) : undefined,
       hindiSourceId: hindiSourceRaw,
@@ -238,7 +228,6 @@ export function savePersistedLocal(state: PersistedState): void {
   localStorage.setItem(K_SCHEMA_EN, JSON.stringify(state.schemaEn));
   localStorage.setItem(K_SCHEMA_HI, JSON.stringify(state.schemaHi));
   localStorage.setItem(K_VERSE_BLOCK_ORDER, JSON.stringify(state.verseBlockOrder));
-  localStorage.setItem(K_USE_BIBLE_COM_EN, JSON.stringify(state.useBibleComEn));
   localStorage.setItem(
     K_USE_BIBLE_COM_HI,
     JSON.stringify(state.hindiSourceId === "biblecom"),

@@ -227,10 +227,10 @@ export function formatSchemaMismatchMessage(
 ): string {
   const tables = listSqliteTables(db);
   const lines = [
-    "The SQLite file opened correctly, but the table/column mapping does not match your database.",
+    "The SQLite file opened correctly, but its table layout could not be mapped automatically.",
     `Configured verse table: "${configured.verseTable}"${tables.includes(configured.verseTable) ? " (exists, but columns or data may differ)" : " (not found)"}.`,
     `Tables in file: ${tables.length ? tables.join(", ") : "(none)"}.`,
-    "Edit English/Hindi schema JSON (top of page), click Apply schema JSON, then upload the file again.",
+    "Try a standard Bible SQLite database, or upload a different file.",
   ];
   if (detected) {
     lines.push(
