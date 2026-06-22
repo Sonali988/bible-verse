@@ -123,13 +123,6 @@ export class ExportRasterHost {
     return host.snap;
   }
 
-  /** Outer wrapper — moved on-screen only while rasterising. */
-  getWrap(variant: ExportVariant): HTMLDivElement {
-    const host = this.hosts[variant];
-    if (!host) throw new Error("Export raster host is not mounted");
-    return host.wrap;
-  }
-
   getLayoutSize(variant: ExportVariant): PngLayoutSize {
     const props = this.props;
     if (!props) throw new Error("Export raster host props are not set");

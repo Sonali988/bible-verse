@@ -62,33 +62,6 @@ async function exportLooksBlank(
   return isMostlyBlankWhitePng(blob);
 }
 
-/**
- * html-to-image can miss content when the export host is off-screen or behind
- * other layers. Move it into the viewport only for the capture window.
- */
-async function withExportHostVisible<T>(
-  host: ExportRasterHost,
-  variant: ExportVariant,
-  fn: () => Promise<T>,
-): Promise<T> {
-  const wrap = host.getWrap(variant);
-  const prevLeft = wrap.style.left;
-  const prevTop = wrap.style.top;
-  const prevZIndex = wrap.style.zIndex;
-  wrap.style.left = "0px";
-  wrap.style.top = "0px";
-  wrap.style.zIndex = "2147483646";
-  try {
-    forceLayout(wrap);
-    await waitForPaint();
-    return await fn();
-  } finally {
-    wrap.style.left = prevLeft;
-    wrap.style.top = prevTop;
-    wrap.style.zIndex = prevZIndex;
-  }
-}
-
 /** Warm fonts and resolve layout size before a batch export. */
 export async function prepareExportBatch(
   host: ExportRasterHost,
@@ -105,17 +78,13 @@ export async function prepareExportBatch(
 }
 
 async function rasterizeNode(
-  host: ExportRasterHost,
-  variant: ExportVariant,
   node: HTMLElement,
   size: PngLayoutSize,
 ): Promise<Blob> {
-  return withExportHostVisible(host, variant, async () => {
-    forceLayout(node);
-    await waitForImagesIn(node);
-    const fontEmbedCSS = await buildFontEmbedCss(node);
-    return renderNodeToPng(node, size, { fontEmbedCSS });
-  });
+  forceLayout(node);
+  await waitForImagesIn(node);
+  const fontEmbedCSS = await buildFontEmbedCss(node);
+  return renderNodeToPng(node, size, { fontEmbedCSS });
 }
 
 export async function capturePngBlob(
@@ -143,7 +112,7 @@ export async function capturePngBlob(
     }
 
     node = host.getSnapshotNode(variant);
-    blob = await rasterizeNode(host, variant, node, rasterSize());
+    blob = await rasterizeNode(node, rasterSize());
 
     if (!(await exportLooksBlank(blob, node, page))) {
       return blob;

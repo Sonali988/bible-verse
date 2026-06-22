@@ -1141,6 +1141,7 @@ textarea {
   top: 0;
   overflow: visible;
   pointer-events: none;
+  z-index: -1;
 }
 
 /* —— Card edit toolbar (form controls inside .panel) —— */
