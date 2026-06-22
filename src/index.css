@@ -95,7 +95,7 @@ body {
 .app-header__logo {
   height: 100%;
   width: auto;
-  max-width: min(8.5rem, 13vw);
+  max-width: min(6rem, 9vw);
   object-fit: contain;
   border-radius: var(--radius-sm);
 }
