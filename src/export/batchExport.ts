@@ -1,4 +1,5 @@
 import type { VersePage } from "../bible/types";
+import { formatReference } from "../lib/referenceParser";
 import type { ExportRasterHost } from "./ExportRasterHost";
 import type { ExportVariant } from "./exportVariant";
 import { buildFontEmbedCss, ensureCardFontsReady, getBaseCardFontEmbedCss } from "./exportFonts";
@@ -9,6 +10,8 @@ import {
   waitForPaint,
   type PngLayoutSize,
 } from "./renderPng";
+
+const MAX_CAPTURE_ATTEMPTS = 3;
 
 function pageHasVerseText(page: VersePage): boolean {
   return page.textEn.trim().length > 0 || page.textHi.trim().length > 0;
@@ -59,6 +62,33 @@ async function exportLooksBlank(
   return isMostlyBlankWhitePng(blob);
 }
 
+/**
+ * html-to-image can miss content when the export host is off-screen or behind
+ * other layers. Move it into the viewport only for the capture window.
+ */
+async function withExportHostVisible<T>(
+  host: ExportRasterHost,
+  variant: ExportVariant,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const wrap = host.getWrap(variant);
+  const prevLeft = wrap.style.left;
+  const prevTop = wrap.style.top;
+  const prevZIndex = wrap.style.zIndex;
+  wrap.style.left = "0px";
+  wrap.style.top = "0px";
+  wrap.style.zIndex = "2147483646";
+  try {
+    forceLayout(wrap);
+    await waitForPaint();
+    return await fn();
+  } finally {
+    wrap.style.left = prevLeft;
+    wrap.style.top = prevTop;
+    wrap.style.zIndex = prevZIndex;
+  }
+}
+
 /** Warm fonts and resolve layout size before a batch export. */
 export async function prepareExportBatch(
   host: ExportRasterHost,
@@ -75,13 +105,17 @@ export async function prepareExportBatch(
 }
 
 async function rasterizeNode(
+  host: ExportRasterHost,
+  variant: ExportVariant,
   node: HTMLElement,
   size: PngLayoutSize,
 ): Promise<Blob> {
-  forceLayout(node);
-  await waitForImagesIn(node);
-  const fontEmbedCSS = await buildFontEmbedCss(node);
-  return renderNodeToPng(node, size, { fontEmbedCSS });
+  return withExportHostVisible(host, variant, async () => {
+    forceLayout(node);
+    await waitForImagesIn(node);
+    const fontEmbedCSS = await buildFontEmbedCss(node);
+    return renderNodeToPng(node, size, { fontEmbedCSS });
+  });
 }
 
 export async function capturePngBlob(
@@ -93,21 +127,30 @@ export async function capturePngBlob(
   await ensureCardFontsReady(host.getTypographyForPage(page, variant));
   await document.fonts.ready;
 
-  host.renderPage(page, variant);
-  await waitForPaint();
+  const rasterSize = (): PngLayoutSize => {
+    const size = host.getLayoutSize(variant);
+    return size.width > 0 && size.height > 0 ? size : layoutSize;
+  };
 
-  const node = host.getSnapshotNode(variant);
-  const size = host.getLayoutSize(variant);
-  const rasterSize =
-    size.width > 0 && size.height > 0 ? size : layoutSize;
+  let blob: Blob | null = null;
+  let node = host.getSnapshotNode(variant);
 
-  let blob = await rasterizeNode(node, rasterSize);
-
-  if (await exportLooksBlank(blob, node, page)) {
+  for (let attempt = 0; attempt < MAX_CAPTURE_ATTEMPTS; attempt++) {
     host.renderPage(page, variant);
     await waitForPaint();
-    blob = await rasterizeNode(host.getSnapshotNode(variant), rasterSize);
+    if (attempt > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 50 * attempt));
+    }
+
+    node = host.getSnapshotNode(variant);
+    blob = await rasterizeNode(host, variant, node, rasterSize());
+
+    if (!(await exportLooksBlank(blob, node, page))) {
+      return blob;
+    }
   }
 
-  return blob;
+  throw new Error(
+    `Export produced a blank image for ${formatReference(page.ref)}. Please try again.`,
+  );
 }

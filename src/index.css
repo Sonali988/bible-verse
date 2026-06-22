@@ -1266,11 +1266,10 @@ textarea {
 
 .export-hidden-host {
   position: fixed;
-  left: -10000px;
+  left: -12000px;
   top: 0;
   overflow: visible;
   pointer-events: none;
-  z-index: -1;
 }
 
 /* —— Card edit toolbar (form controls inside .panel) —— */
