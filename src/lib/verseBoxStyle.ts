@@ -38,7 +38,7 @@ export function liveHindiTitleEdgePadding(
   fontSizePx: number,
 ): Pick<CSSProperties, "paddingTop" | "paddingBottom" | "paddingLeft" | "paddingRight"> {
   const top = Math.max(4, Math.round(fontSizePx * 0.1));
-  const bottom = Math.max(12, Math.round(fontSizePx * 0.32));
+  const bottom = Math.max(16, Math.round(fontSizePx * 0.4));
   const h = Math.max(2, Math.round(fontSizePx * 0.04));
   return {
     paddingTop: top,
