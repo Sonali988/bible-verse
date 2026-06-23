@@ -74,7 +74,7 @@ export function usePageQueue(
       ),
     }));
     setPages((p) => [...p, ...newPages]);
-    selectPage(newPages[0]!.id, "live");
+    selectPage(newPages[0]!.id, "both");
     setDraft(null);
   }, [draft, providerEn.versionLabel, providerHi.versionLabel, design, selectPage]);
 
