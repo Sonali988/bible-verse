@@ -19,6 +19,7 @@ type Props = {
   onUpdateResolumeTypography: (fn: (prev: TypographySpec) => TypographySpec) => void;
   onResetCardDesign: () => void;
   onResetResolumeDesign: () => void;
+  onClose: () => void;
 };
 
 export function EditCardRail({
@@ -36,10 +37,21 @@ export function EditCardRail({
   onUpdateResolumeTypography,
   onResetCardDesign,
   onResetResolumeDesign,
+  onClose,
 }: Props) {
   return (
     <aside className="app-edit-rail" aria-label="Edit card design">
-      <p className="workflow-heading app-edit-rail__heading">Edit card</p>
+      <div className="app-edit-rail__chrome">
+        <p className="workflow-heading app-edit-rail__heading">Edit card</p>
+        <button
+          type="button"
+          className="app-edit-rail__close"
+          aria-label="Close edit panel"
+          onClick={onClose}
+        >
+          <span aria-hidden>×</span>
+        </button>
+      </div>
       <section className="panel app-edit-rail__panel app-edit-rail__panel--order">
         <VerseOrderControl value={verseBlockOrder} onChange={onVerseBlockOrderChange} />
       </section>

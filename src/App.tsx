@@ -16,7 +16,12 @@ import { useCardDesign } from "./hooks/useCardDesign";
 import { useCardExport } from "./hooks/useCardExport";
 import { usePageQueue } from "./hooks/usePageQueue";
 import { hindiSourceUsesSqlite } from "./config/hindiSources";
-import type { PersistedState } from "./lib/storage";
+import {
+  defaultBackgroundSlots,
+  selectedBackgroundUrl,
+  type BackgroundSlots,
+  type PersistedState,
+} from "./lib/storage";
 
 const SIDEBAR_ID = "app-sidebar-panel";
 
@@ -30,7 +35,9 @@ export default function App({
   onReloadShared?: () => Promise<void>;
 }) {
   const persisted = bootstrap.persisted;
-  const [bgDataUrl, setBgDataUrl] = useState<string | null>(() => bootstrap.bgDataUrl);
+  const [backgrounds, setBackgrounds] = useState<BackgroundSlots>(
+    () => persisted.backgrounds ?? defaultBackgroundSlots(),
+  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editRailOpen, setEditRailOpen] = useState(false);
   const [workflowVariant, setWorkflowVariant] = useState<ExportVariant>("live");
@@ -51,8 +58,7 @@ export default function App({
     },
   );
 
-  const cardBackgroundUrl =
-    bgDataUrl && bgDataUrl.trim().length > 0 ? bgDataUrl : null;
+  const cardBackgroundUrl = selectedBackgroundUrl(backgrounds);
 
   const persistedSnapshot = useMemo(
     (): PersistedState => ({
@@ -66,15 +72,15 @@ export default function App({
       verseBlockOrder: design.verseBlockOrder,
       hindiSourceId: bible.hindiSourceId,
       englishSqliteVersionId: bible.englishVersionId,
+      backgrounds,
     }),
-    [queue.pages, design.cardLayout, design.typography, design.resolumeLayout, design.resolumeTypography, design.verseBlockOrder, bible.schemaEn, bible.schemaHi, bible.hindiSourceId, bible.englishVersionId],
+    [queue.pages, design.cardLayout, design.typography, design.resolumeLayout, design.resolumeTypography, design.verseBlockOrder, bible.schemaEn, bible.schemaHi, bible.hindiSourceId, bible.englishVersionId, backgrounds],
   );
 
   const { sharedSaveState, bgSaveWarning, setBgSaveWarning } = useAppPersistence(
     persistedSnapshot,
     sharedStorage,
     bootstrap.remoteUpdatedAt,
-    bgDataUrl,
   );
 
   const exportHostProps = useMemo(
@@ -102,8 +108,41 @@ export default function App({
     return () => window.removeEventListener("keydown", onKey);
   }, [sidebarOpen]);
 
-  const onBgFile = (file: File | null) => {
-    readBackgroundFile(file, setBgDataUrl, setBgSaveWarning);
+  const onBgFile = (slotIndex: number, file: File | null) => {
+    readBackgroundFile(
+      file,
+      (url) => {
+        setBackgrounds((prev) => {
+          const images = [...prev.images];
+          images[slotIndex] = url;
+          return {
+            images,
+            selectedIndex: url ? slotIndex : prev.selectedIndex,
+          };
+        });
+      },
+      setBgSaveWarning,
+    );
+  };
+
+  const onSelectBackground = (slotIndex: number) => {
+    setBackgrounds((prev) =>
+      prev.images[slotIndex] ? { ...prev, selectedIndex: slotIndex } : prev,
+    );
+  };
+
+  const onClearBackgroundSlot = (slotIndex: number) => {
+    setBackgrounds((prev) => {
+      const images = [...prev.images];
+      images[slotIndex] = null;
+      let selectedIndex = prev.selectedIndex;
+      if (selectedIndex === slotIndex) {
+        const next = images.findIndex((img) => img);
+        selectedIndex = next >= 0 ? next : 0;
+      }
+      return { images, selectedIndex };
+    });
+    setBgSaveWarning(null);
   };
 
   return (
@@ -120,7 +159,6 @@ export default function App({
         providerEnLabel={bible.providerEn.versionLabel}
         providerHiLabel={bible.providerHi.versionLabel}
         onToggleSidebar={() => setSidebarOpen((open) => !open)}
-        onOpenSidebar={() => setSidebarOpen(true)}
         onToggleEditRail={() => setEditRailOpen((open) => !open)}
       />
 
@@ -129,6 +167,8 @@ export default function App({
           open={sidebarOpen}
           sidebarId={SIDEBAR_ID}
           bgSaveWarning={bgSaveWarning}
+          sharedStorage={sharedStorage}
+          backgrounds={backgrounds}
           bundledStatus={bible.bundledStatus}
           englishLabel={bible.englishLabel}
           hindiLabel={bible.hindiLabel}
@@ -143,6 +183,8 @@ export default function App({
           sqliteLoadNote={bible.sqliteLoadNote}
           onClose={() => setSidebarOpen(false)}
           onBgFile={onBgFile}
+          onSelectBackground={onSelectBackground}
+          onClearBackgroundSlot={onClearBackgroundSlot}
           onEnglishVersionChange={bible.setEnglishVersionId}
           onHindiSourceChange={bible.setHindiSourceId}
           onOpenSqliteUpload={bible.setSqliteUploadLang}
@@ -242,6 +284,7 @@ export default function App({
               onUpdateResolumeTypography={design.updateResolumeTypography}
               onResetCardDesign={() => design.resetCardDesign(queue.setPages)}
               onResetResolumeDesign={() => design.resetResolumeDesign(queue.setPages)}
+              onClose={() => setEditRailOpen(false)}
             />
           )}
         </div>

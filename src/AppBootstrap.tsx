@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import App from "./App";
 import {
-  loadBackgroundDataUrl,
+  loadLocalBackgroundSlots,
   loadPersisted,
   loadPersistedRemote,
   remoteStorageEnabled,
@@ -10,23 +10,21 @@ import {
 
 export type AppBootstrapData = {
   persisted: Partial<PersistedState>;
-  bgDataUrl: string | null;
   remoteUpdatedAt: number | null;
 };
 
-function loadLocalBootstrap(): AppBootstrapData {
+async function loadLocalBootstrap(): Promise<AppBootstrapData> {
+  const persisted = loadPersisted();
+  const backgrounds = await loadLocalBackgroundSlots();
   return {
-    persisted: loadPersisted(),
-    bgDataUrl: loadBackgroundDataUrl(),
+    persisted: { ...persisted, backgrounds },
     remoteUpdatedAt: null,
   };
 }
 
 export default function AppBootstrap() {
   const remote = remoteStorageEnabled();
-  const [boot, setBoot] = useState<AppBootstrapData | null>(
-    remote ? null : loadLocalBootstrap(),
-  );
+  const [boot, setBoot] = useState<AppBootstrapData | null>(null);
   const [remountKey, setRemountKey] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -36,7 +34,6 @@ export default function AppBootstrap() {
       const { state, updatedAt } = await loadPersistedRemote();
       setBoot({
         persisted: state,
-        bgDataUrl: loadBackgroundDataUrl(),
         remoteUpdatedAt: updatedAt,
       });
       setRemountKey((key) => key + 1);
@@ -49,14 +46,23 @@ export default function AppBootstrap() {
   }, [remote]);
 
   useEffect(() => {
-    if (!remote) return;
-    void reloadRemote();
+    let cancelled = false;
+    if (remote) {
+      void reloadRemote();
+      return;
+    }
+    void loadLocalBootstrap().then((data) => {
+      if (!cancelled) setBoot(data);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [remote, reloadRemote]);
 
   if (!boot) {
     return (
       <div className="app-bootstrap">
-        <p>{loadError ?? "Loading shared cards…"}</p>
+        <p>{loadError ?? "Loading…"}</p>
         {loadError ? (
           <button type="button" onClick={() => void reloadRemote()}>
             Retry

@@ -15,6 +15,7 @@ export type SharedAppState = {
   verseBlockOrder: unknown;
   hindiSourceId: string;
   englishSqliteVersionId: string;
+  backgrounds: unknown;
 };
 
 function resolveRedis(): Redis {

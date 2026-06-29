@@ -16,6 +16,12 @@ type RectKey = keyof Pick<
   "titleEn" | "bodyEn" | "titleHi" | "bodyHi"
 >;
 
+function normalizeHex(color: string, fallback: string): string {
+  const s = color.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s;
+  return fallback;
+}
+
 function Num({
   label,
   value,
@@ -198,6 +204,52 @@ export function DesignToolbar({
                 ...t,
                 fontFamilyHi: e.target.value,
               }))
+            }
+          />
+        </label>
+      </div>
+
+      <p className="design-toolbar__section-label">Colors &amp; title align</p>
+      <div className="design-toolbar__row design-toolbar__row--controls">
+        <label className="toolbar-field">
+          <span>Title color</span>
+          <input
+            type="color"
+            value={normalizeHex(typography.titleColor, "#ffffff")}
+            onChange={(e) => onUpdateTypography((t) => ({ ...t, titleColor: e.target.value }))}
+          />
+        </label>
+        <label className="toolbar-field">
+          <span>Title align</span>
+          <select
+            value={typography.titleTextAlign}
+            onChange={(e) =>
+              onUpdateTypography((t) => ({
+                ...t,
+                titleTextAlign: e.target.value as TypographySpec["titleTextAlign"],
+              }))
+            }
+          >
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
+        </label>
+        <label className="toolbar-field">
+          <span>Verse color</span>
+          <input
+            type="color"
+            value={normalizeHex(typography.bodyColor, "#ffffff")}
+            onChange={(e) => onUpdateTypography((t) => ({ ...t, bodyColor: e.target.value }))}
+          />
+        </label>
+        <label className="toolbar-field">
+          <span>Highlight color</span>
+          <input
+            type="color"
+            value={normalizeHex(typography.highlightColor, "#f1a600")}
+            onChange={(e) =>
+              onUpdateTypography((t) => ({ ...t, highlightColor: e.target.value }))
             }
           />
         </label>

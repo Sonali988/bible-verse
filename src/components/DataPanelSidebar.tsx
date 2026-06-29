@@ -7,6 +7,7 @@ import {
   normalizeHindiSourceId,
   type HindiSourceId,
 } from "../config/hindiSources";
+import { BACKGROUND_SLOT_COUNT, type BackgroundSlots } from "../lib/storage";
 
 type BundledStatus = "loading" | "loaded" | "partial" | "missing";
 
@@ -14,6 +15,8 @@ type Props = {
   open: boolean;
   sidebarId: string;
   bgSaveWarning: string | null;
+  sharedStorage: boolean;
+  backgrounds: BackgroundSlots;
   bundledStatus: BundledStatus;
   englishLabel: string;
   hindiLabel: string;
@@ -27,7 +30,9 @@ type Props = {
   sqliteFileErr: string | null;
   sqliteLoadNote: string | null;
   onClose: () => void;
-  onBgFile: (file: File | null) => void;
+  onBgFile: (slotIndex: number, file: File | null) => void;
+  onSelectBackground: (slotIndex: number) => void;
+  onClearBackgroundSlot: (slotIndex: number) => void;
   onEnglishVersionChange: (id: EnglishSqliteVersionId) => void;
   onHindiSourceChange: (id: HindiSourceId) => void;
   onOpenSqliteUpload: (lang: "en" | "hi") => void;
@@ -37,6 +42,8 @@ export function DataPanelSidebar({
   open,
   sidebarId,
   bgSaveWarning,
+  sharedStorage,
+  backgrounds,
   bundledStatus,
   englishLabel,
   hindiLabel,
@@ -51,6 +58,8 @@ export function DataPanelSidebar({
   sqliteLoadNote,
   onClose,
   onBgFile,
+  onSelectBackground,
+  onClearBackgroundSlot,
   onEnglishVersionChange,
   onHindiSourceChange,
   onOpenSqliteUpload,
@@ -86,18 +95,77 @@ export function DataPanelSidebar({
         <div className="app-sidebar__scroll">
           <section className="panel panel--sidebar">
             <h2>Background</h2>
-            <label>
-              Card background image
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => onBgFile(e.target.files?.[0] ?? null)}
-              />
-            </label>
-            {bgSaveWarning && <p className="warn">{bgSaveWarning}</p>}
             <p className="hint">
-              Saved in this browser. Cards use the default color when no image is set.
+              {sharedStorage
+                ? "Up to 4 backgrounds shared across users. The selected slot is used on all cards."
+                : "Up to 4 backgrounds. The selected slot is used on all cards."}
             </p>
+            <div className="bg-slots" role="list" aria-label="Background slots">
+              {Array.from({ length: BACKGROUND_SLOT_COUNT }, (_, slotIndex) => {
+                const image = backgrounds.images[slotIndex];
+                const selected = backgrounds.selectedIndex === slotIndex;
+                const inputId = `bg-slot-file-${slotIndex}`;
+                return (
+                  <div
+                    key={slotIndex}
+                    className={
+                      selected
+                        ? "bg-slot bg-slot--selected"
+                        : image
+                          ? "bg-slot"
+                          : "bg-slot bg-slot--empty"
+                    }
+                    role="listitem"
+                  >
+                    <button
+                      type="button"
+                      className="bg-slot__pick"
+                      disabled={!image}
+                      aria-pressed={selected}
+                      aria-label={`Use background ${slotIndex + 1}`}
+                      onClick={() => onSelectBackground(slotIndex)}
+                    >
+                      {image ? (
+                        <img
+                          className="bg-slot__thumb"
+                          src={image}
+                          alt=""
+                          decoding="async"
+                        />
+                      ) : (
+                        <span className="bg-slot__placeholder">Empty</span>
+                      )}
+                    </button>
+                    <div className="bg-slot__actions">
+                      <label className="btn btn--ghost btn--sm bg-slot__upload" htmlFor={inputId}>
+                        {image ? "Replace" : "Upload"}
+                      </label>
+                      <input
+                        id={inputId}
+                        type="file"
+                        accept="image/*"
+                        className="bg-slot__file"
+                        onChange={(e) => {
+                          onBgFile(slotIndex, e.target.files?.[0] ?? null);
+                          e.target.value = "";
+                        }}
+                      />
+                      {image && (
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => onClearBackgroundSlot(slotIndex)}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <span className="bg-slot__label">Slot {slotIndex + 1}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {bgSaveWarning && <p className="warn">{bgSaveWarning}</p>}
           </section>
 
           <section className="panel panel--sidebar">

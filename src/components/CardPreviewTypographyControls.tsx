@@ -112,7 +112,7 @@ export function CardPreviewTypographyControls({
           className="btn btn--sm design-toolbar__section-action"
           onClick={() => setStyleModalOpen(true)}
         >
-          Colors & alignment
+          Verse alignment
         </button>
       </div>
       <div className="design-toolbar__row design-toolbar__row--controls">
