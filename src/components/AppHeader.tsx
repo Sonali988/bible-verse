@@ -13,7 +13,6 @@ type Props = {
   providerEnLabel: string;
   providerHiLabel: string;
   onToggleSidebar: () => void;
-  onOpenSidebar: () => void;
   onToggleEditRail: () => void;
 };
 
@@ -29,7 +28,6 @@ export function AppHeader({
   providerEnLabel,
   providerHiLabel,
   onToggleSidebar,
-  onOpenSidebar,
   onToggleEditRail,
 }: Props) {
   return (
@@ -77,8 +75,14 @@ export function AppHeader({
                 )}
               </>
             )}
-            <button type="button" className="btn btn--ghost btn--sm" onClick={onOpenSidebar}>
-              Data &amp; background
+            <button
+              type="button"
+              className={sidebarOpen ? "btn btn--sm" : "btn btn--ghost btn--sm"}
+              aria-expanded={sidebarOpen}
+              aria-controls={sidebarId}
+              onClick={onToggleSidebar}
+            >
+              {sidebarOpen ? "Hide data & background" : "Data & background"}
             </button>
             <button
               type="button"

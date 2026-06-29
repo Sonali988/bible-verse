@@ -86,15 +86,33 @@ export type VersePage = {
   resolumeTypographySizes?: PageTypographyOverrides;
 };
 
-/** Effective typography for rendering one card (global + optional per-page font sizes). */
+const PAGE_TYPOGRAPHY_OVERRIDE_KEYS = [
+  "titleFontPxHi",
+  "titleFontPxEn",
+  "bodyFontPxHi",
+  "bodyFontPxEn",
+  "lineHeightHi",
+  "lineHeightEn",
+  "textAlign",
+] as const satisfies readonly (keyof PageTypographyOverrides)[];
+
+/** Effective typography for rendering one card (global colors + optional per-page sizes). */
 export function mergePageTypography(
   global: TypographySpec,
   page: VersePage,
   sizesKey: "typographySizes" | "resolumeTypographySizes" = "typographySizes",
 ): TypographySpec {
   const o = page[sizesKey];
-  if (!o || Object.keys(o).length === 0) return global;
-  return normalizeTypography({ ...global, ...o });
+  if (!o) return global;
+  const patch: Partial<TypographySpec> = {};
+  for (const key of PAGE_TYPOGRAPHY_OVERRIDE_KEYS) {
+    const value = o[key];
+    if (value !== undefined) {
+      (patch as Record<string, unknown>)[key] = value;
+    }
+  }
+  if (Object.keys(patch).length === 0) return global;
+  return normalizeTypography({ ...global, ...patch });
 }
 
 /**

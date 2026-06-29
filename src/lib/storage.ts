@@ -27,6 +27,15 @@ import {
   saveSharedState,
   type SharedStatePayload,
 } from "./remoteStorage";
+import {
+  defaultBackgroundSlots,
+  normalizeBackgroundSlots,
+  type BackgroundSlots,
+} from "./backgroundSlots";
+import {
+  loadBackgroundImagesFromIdb,
+  saveBackgroundImagesToIdb,
+} from "./backgroundImageStore";
 
 const K_PAGES = "bvc:pages";
 const K_CARD_LAYOUT = "bvc:cardLayout";
@@ -39,6 +48,15 @@ const K_VERSE_BLOCK_ORDER = "bvc:verseBlockOrder";
 const K_HINDI_SOURCE = "bvc:hindiSourceId";
 const K_ENGLISH_SQLITE_VERSION = "bvc:englishSqliteVersionId";
 const K_BG_DATA_URL = "bvc:bgDataUrl";
+const K_BACKGROUNDS = "bvc:backgrounds";
+
+export type { BackgroundSlots };
+export {
+  defaultBackgroundSlots,
+  normalizeBackgroundSlots,
+  selectedBackgroundUrl,
+  BACKGROUND_SLOT_COUNT,
+} from "./backgroundSlots";
 
 export type PersistedState = {
   pages: VersePage[];
@@ -51,6 +69,7 @@ export type PersistedState = {
   verseBlockOrder: VerseBlockOrder;
   hindiSourceId: HindiSourceId;
   englishSqliteVersionId: EnglishSqliteVersionId;
+  backgrounds: BackgroundSlots;
 };
 
 function isValidLayout(value: unknown): value is LayoutSpec {
@@ -77,6 +96,7 @@ export function normalizePersisted(raw: {
   verseBlockOrder?: unknown;
   hindiSourceId?: unknown;
   englishSqliteVersionId?: unknown;
+  backgrounds?: unknown;
 }): Partial<PersistedState> {
   const pagesRaw = raw.pages as VersePage[] | null | undefined;
   const englishSqliteVersionId =
@@ -122,6 +142,7 @@ export function normalizePersisted(raw: {
     raw.verseBlockOrder != null
       ? normalizeVerseBlockOrder(raw.verseBlockOrder)
       : undefined;
+  const backgrounds = normalizeBackgroundSlots(raw.backgrounds);
   return {
     pages: pages ?? undefined,
     cardLayout,
@@ -133,10 +154,77 @@ export function normalizePersisted(raw: {
     verseBlockOrder,
     hindiSourceId,
     englishSqliteVersionId,
+    backgrounds,
   };
 }
 
-/** Custom card background (data URL from file upload). Stays in localStorage only. */
+export function loadBackgroundSlotsMeta(): Pick<BackgroundSlots, "selectedIndex"> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(K_BACKGROUNDS) ?? "null") as
+      | { selectedIndex?: unknown; images?: unknown }
+      | null;
+    if (!raw || typeof raw !== "object") return { selectedIndex: 0 };
+    if (typeof raw.selectedIndex === "number" && Number.isFinite(raw.selectedIndex)) {
+      return {
+        selectedIndex: Math.min(
+          3,
+          Math.max(0, Math.floor(raw.selectedIndex)),
+        ),
+      };
+    }
+    return { selectedIndex: 0 };
+  } catch {
+    return { selectedIndex: 0 };
+  }
+}
+
+/** Legacy inline images in localStorage (pre-IndexedDB). */
+export function loadLegacyInlineBackgrounds(): BackgroundSlots | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(K_BACKGROUNDS) ?? "null");
+    if (!raw || typeof raw !== "object" || !Array.isArray((raw as { images?: unknown }).images)) {
+      return null;
+    }
+    return normalizeBackgroundSlots(raw, loadBackgroundDataUrl());
+  } catch {
+    return null;
+  }
+}
+
+export async function loadLocalBackgroundSlots(): Promise<BackgroundSlots> {
+  const legacy = loadLegacyInlineBackgrounds();
+  if (legacy?.images.some((img) => img)) {
+    await saveBackgroundImagesToIdb(legacy.images);
+    saveBackgroundSlotsMeta(legacy.selectedIndex);
+    return legacy;
+  }
+  const meta = loadBackgroundSlotsMeta();
+  const images = await loadBackgroundImagesFromIdb();
+  return normalizeBackgroundSlots({ images, selectedIndex: meta.selectedIndex });
+}
+
+export function saveBackgroundSlotsMeta(selectedIndex: number): boolean {
+  try {
+    localStorage.setItem(
+      K_BACKGROUNDS,
+      JSON.stringify({ selectedIndex }),
+    );
+    return true;
+  } catch (e) {
+    console.warn("Could not save background slot selection", e);
+    return false;
+  }
+}
+
+export async function saveLocalBackgroundSlots(
+  slots: BackgroundSlots,
+): Promise<boolean> {
+  const metaOk = saveBackgroundSlotsMeta(slots.selectedIndex);
+  const imagesOk = await saveBackgroundImagesToIdb(slots.images);
+  return metaOk && imagesOk;
+}
+
+/** @deprecated Legacy single background — migrated into `backgrounds` on load. */
 export function loadBackgroundDataUrl(): string | null {
   try {
     const raw = localStorage.getItem(K_BG_DATA_URL);
@@ -146,7 +234,7 @@ export function loadBackgroundDataUrl(): string | null {
   }
 }
 
-/** @returns false if the image could not be stored (e.g. localStorage quota). */
+/** @deprecated Backgrounds are stored in `PersistedState.backgrounds`. */
 export function saveBackgroundDataUrl(url: string | null): boolean {
   try {
     if (!url?.trim()) {
@@ -190,6 +278,7 @@ export function loadPersisted(): Partial<PersistedState> {
     ) as SqliteSchemaConfig | null;
     const verseBlockOrderRaw = localStorage.getItem(K_VERSE_BLOCK_ORDER);
     const hindiSourceRaw = localStorage.getItem(K_HINDI_SOURCE);
+    const meta = loadBackgroundSlotsMeta();
 
     return normalizePersisted({
       pages: pagesRaw,
@@ -205,6 +294,7 @@ export function loadPersisted(): Partial<PersistedState> {
           ? JSON.parse(verseBlockOrderRaw)
           : undefined,
       hindiSourceId: hindiSourceRaw,
+      backgrounds: normalizeBackgroundSlots({ selectedIndex: meta.selectedIndex }),
     });
   } catch {
     return {};
@@ -225,6 +315,7 @@ export function savePersistedLocal(state: PersistedState): void {
     K_ENGLISH_SQLITE_VERSION,
     state.englishSqliteVersionId,
   );
+  saveBackgroundSlotsMeta(state.backgrounds.selectedIndex);
 }
 
 export { remoteStorageEnabled };

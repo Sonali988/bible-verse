@@ -9,7 +9,7 @@ import {
 } from "../export/exportProgress";
 import { exportProgressStore } from "../export/exportProgressStore";
 import type { ExportVariant } from "../export/exportVariant";
-import { datedZipFileName, exportPngFileName } from "../lib/exportFileNames";
+import { datedZipFileName, uniqueExportPngFileNames } from "../lib/exportFileNames";
 import { formatReference } from "../lib/referenceParser";
 import type { VerseBlockOrder } from "../lib/verseBlockOrder";
 import type { LayoutSpec, TypographySpec } from "../bible/types";
@@ -62,7 +62,7 @@ export function useCardExport(hostProps: ExportHostProps) {
       variant: ExportVariant,
       list: VersePage[],
       format: ExportFormat,
-      onBlob: (page: VersePage, blob: Blob) => void | Promise<void>,
+      onBlob: (page: VersePage, blob: Blob, index: number) => void | Promise<void>,
     ) => {
       const host = exportHostRef.current;
       if (!host) throw new Error("Export host missing");
@@ -78,7 +78,7 @@ export function useCardExport(hostProps: ExportHostProps) {
           const t0 = performance.now();
           const blob = await capturePngBlob(host, p, variant, layoutSize);
           tracker.recordRender(performance.now() - t0);
-          await onBlob(p, blob);
+          await onBlob(p, blob, i);
           completed = i + 1;
         }
         return tracker;
@@ -98,8 +98,15 @@ export function useCardExport(hostProps: ExportHostProps) {
       const list = pages.filter((p) => pageIds.includes(p.id));
       if (list.length === 0) return;
       try {
-        const tracker = await runExportBatch(variant, list, "png", (p, blob) => {
-          savePng(blob, exportPngFileName(p.ref, variant));
+        const names = uniqueExportPngFileNames(
+          list,
+          variant,
+          hostProps.englishLabel,
+          hostProps.hindiLabel,
+          hostProps.verseBlockOrder,
+        );
+        const tracker = await runExportBatch(variant, list, "png", (p, blob, i) => {
+          savePng(blob, names[i]!);
         });
         exportProgressStore.setImmediate(tracker.complete());
       } finally {
@@ -107,7 +114,13 @@ export function useCardExport(hostProps: ExportHostProps) {
         clearExportProgressSoon();
       }
     },
-    [clearExportProgressSoon, runExportBatch],
+    [
+      clearExportProgressSoon,
+      runExportBatch,
+      hostProps.englishLabel,
+      hostProps.hindiLabel,
+      hostProps.verseBlockOrder,
+    ],
   );
 
   const downloadZip = useCallback(
@@ -116,24 +129,28 @@ export function useCardExport(hostProps: ExportHostProps) {
       if (list.length === 0) return;
       const entries: { name: string; blob: Blob }[] = [];
       try {
-        const tracker = await runExportBatch(variant, list, "zip", (p, blob) => {
+        const names = uniqueExportPngFileNames(
+          list,
+          variant,
+          hostProps.englishLabel,
+          hostProps.hindiLabel,
+          hostProps.verseBlockOrder,
+        );
+        const tracker = await runExportBatch(variant, list, "zip", (p, blob, i) => {
           entries.push({
-            name: exportPngFileName(p.ref, variant),
+            name: names[i]!,
             blob,
           });
         });
         exportProgressStore.setImmediate(tracker.zipping());
-        await zipBlobs(
-          entries,
-          datedZipFileName(variant === "live" ? "live" : "resolume"),
-        );
+        await zipBlobs(entries, datedZipFileName(variant));
         exportProgressStore.setImmediate(tracker.complete());
       } finally {
         setExportBusy(false);
         clearExportProgressSoon();
       }
     },
-    [clearExportProgressSoon, runExportBatch],
+    [clearExportProgressSoon, runExportBatch, hostProps.englishLabel, hostProps.hindiLabel, hostProps.verseBlockOrder],
   );
 
   return {
