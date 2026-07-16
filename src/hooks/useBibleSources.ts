@@ -34,10 +34,7 @@ import type { PersistedState } from "../lib/storage";
 const SQLITE_HI_LABEL = "HINOVBSI";
 
 type PersistedSlice = Partial<
-  Pick<
-    PersistedState,
-    "hindiSourceId" | "englishSqliteVersionId" | "schemaEn" | "schemaHi"
-  >
+  Pick<PersistedState, "hindiSourceId" | "englishSqliteVersionId">
 >;
 
 export function useBibleSources(persisted: PersistedSlice) {
@@ -53,12 +50,8 @@ export function useBibleSources(persisted: PersistedSlice) {
 
   const [sqliteEnActive, setSqliteEnActive] = useState(false);
   const [sqliteHiActive, setSqliteHiActive] = useState(false);
-  const [schemaEn, setSchemaEn] = useState<SqliteSchemaConfig>(
-    persisted.schemaEn ?? defaultSqliteSchema(),
-  );
-  const [schemaHi, setSchemaHi] = useState<SqliteSchemaConfig>(
-    persisted.schemaHi ?? defaultSqliteSchema(),
-  );
+  const [schemaEn, setSchemaEn] = useState<SqliteSchemaConfig>(defaultSqliteSchema);
+  const [schemaHi, setSchemaHi] = useState<SqliteSchemaConfig>(defaultSqliteSchema);
 
   const [providerEn, setProviderEn] = useState<BibleProvider>(() => {
     const label = englishSqliteVersion(
@@ -314,8 +307,6 @@ export function useBibleSources(persisted: PersistedSlice) {
     englishLabel,
     hindiLabel,
     englishUsesYouVersion,
-    schemaEn,
-    schemaHi,
     bundledStatus,
     enBundledLoading,
     hiBundledLoading,

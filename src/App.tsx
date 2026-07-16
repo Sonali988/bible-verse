@@ -67,14 +67,12 @@ export default function App({
       typography: design.typography,
       resolumeLayout: design.resolumeLayout,
       resolumeTypography: design.resolumeTypography,
-      schemaEn: bible.schemaEn,
-      schemaHi: bible.schemaHi,
       verseBlockOrder: design.verseBlockOrder,
       hindiSourceId: bible.hindiSourceId,
       englishSqliteVersionId: bible.englishVersionId,
       backgrounds,
     }),
-    [queue.pages, design.cardLayout, design.typography, design.resolumeLayout, design.resolumeTypography, design.verseBlockOrder, bible.schemaEn, bible.schemaHi, bible.hindiSourceId, bible.englishVersionId, backgrounds],
+    [queue.pages, design.cardLayout, design.typography, design.resolumeLayout, design.resolumeTypography, design.verseBlockOrder, bible.hindiSourceId, bible.englishVersionId, backgrounds],
   );
 
   const { sharedSaveState, bgSaveWarning, setBgSaveWarning } = useAppPersistence(

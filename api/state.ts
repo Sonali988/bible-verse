@@ -10,12 +10,12 @@ export type SharedAppState = {
   resolumeLayout: unknown;
   typography: unknown;
   resolumeTypography: unknown;
-  schemaEn: unknown;
-  schemaHi: unknown;
   verseBlockOrder: unknown;
   hindiSourceId: string;
   englishSqliteVersionId: string;
-  backgrounds: unknown;
+  backgrounds: {
+    selectedIndex: number;
+  };
 };
 
 function resolveRedis(): Redis {
@@ -65,6 +65,24 @@ export default async function handler(
 
       const payload: SharedAppState = {
         ...body,
+        backgrounds: {
+          selectedIndex:
+            body.backgrounds &&
+            typeof body.backgrounds === "object" &&
+            typeof (body.backgrounds as { selectedIndex?: unknown })
+              .selectedIndex === "number"
+              ? Math.min(
+                  3,
+                  Math.max(
+                    0,
+                    Math.floor(
+                      (body.backgrounds as { selectedIndex: number })
+                        .selectedIndex,
+                    ),
+                  ),
+                )
+              : 0,
+        },
         updatedAt: Date.now(),
       };
       await redis.set(STATE_KEY, payload);

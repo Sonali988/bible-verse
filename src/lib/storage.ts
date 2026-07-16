@@ -10,7 +10,6 @@ import {
   type VerseBlockOrder,
 } from "./verseBlockOrder";
 import { normalizeVerseRef } from "./referenceParser";
-import type { SqliteSchemaConfig } from "../bible/sqlite/schemaConfig";
 import {
   englishSqliteVersion,
   normalizeEnglishSqliteVersionId,
@@ -22,8 +21,10 @@ import {
   type HindiSourceId,
 } from "../config/hindiSources";
 import {
+  fetchSharedBackgrounds,
   fetchSharedState,
   remoteStorageEnabled,
+  saveSharedBackgroundSlots,
   saveSharedState,
   type SharedStatePayload,
 } from "./remoteStorage";
@@ -42,8 +43,6 @@ const K_CARD_LAYOUT = "bvc:cardLayout";
 const K_RESOLUME_LAYOUT = "bvc:resolumeLayout";
 const K_TYPO = "bvc:typography";
 const K_RESOLUME_TYPO = "bvc:resolumeTypography";
-const K_SCHEMA_EN = "bvc:schemaEn";
-const K_SCHEMA_HI = "bvc:schemaHi";
 const K_VERSE_BLOCK_ORDER = "bvc:verseBlockOrder";
 const K_HINDI_SOURCE = "bvc:hindiSourceId";
 const K_ENGLISH_SQLITE_VERSION = "bvc:englishSqliteVersionId";
@@ -64,8 +63,6 @@ export type PersistedState = {
   resolumeLayout: LayoutSpec;
   typography: TypographySpec;
   resolumeTypography: TypographySpec;
-  schemaEn: SqliteSchemaConfig;
-  schemaHi: SqliteSchemaConfig;
   verseBlockOrder: VerseBlockOrder;
   hindiSourceId: HindiSourceId;
   englishSqliteVersionId: EnglishSqliteVersionId;
@@ -91,8 +88,6 @@ export function normalizePersisted(raw: {
   resolumeLayout?: unknown;
   typography?: unknown;
   resolumeTypography?: unknown;
-  schemaEn?: unknown;
-  schemaHi?: unknown;
   verseBlockOrder?: unknown;
   hindiSourceId?: unknown;
   englishSqliteVersionId?: unknown;
@@ -136,8 +131,6 @@ export function normalizePersisted(raw: {
     : undefined;
   const typography = raw.typography as TypographySpec | null | undefined;
   const resolumeTypography = raw.resolumeTypography as TypographySpec | null | undefined;
-  const schemaEn = raw.schemaEn as SqliteSchemaConfig | null | undefined;
-  const schemaHi = raw.schemaHi as SqliteSchemaConfig | null | undefined;
   const verseBlockOrder =
     raw.verseBlockOrder != null
       ? normalizeVerseBlockOrder(raw.verseBlockOrder)
@@ -149,8 +142,6 @@ export function normalizePersisted(raw: {
     resolumeLayout,
     typography: typography ?? undefined,
     resolumeTypography: resolumeTypography ?? undefined,
-    schemaEn: schemaEn ?? undefined,
-    schemaHi: schemaHi ?? undefined,
     verseBlockOrder,
     hindiSourceId,
     englishSqliteVersionId,
@@ -270,12 +261,6 @@ export function loadPersisted(): Partial<PersistedState> {
     const resolumeTypography = JSON.parse(
       localStorage.getItem(K_RESOLUME_TYPO) ?? "null",
     ) as TypographySpec | null;
-    const schemaEn = JSON.parse(
-      localStorage.getItem(K_SCHEMA_EN) ?? "null",
-    ) as SqliteSchemaConfig | null;
-    const schemaHi = JSON.parse(
-      localStorage.getItem(K_SCHEMA_HI) ?? "null",
-    ) as SqliteSchemaConfig | null;
     const verseBlockOrderRaw = localStorage.getItem(K_VERSE_BLOCK_ORDER);
     const hindiSourceRaw = localStorage.getItem(K_HINDI_SOURCE);
     const meta = loadBackgroundSlotsMeta();
@@ -287,8 +272,6 @@ export function loadPersisted(): Partial<PersistedState> {
       resolumeLayout: resolumeLayoutRaw,
       typography,
       resolumeTypography,
-      schemaEn,
-      schemaHi,
       verseBlockOrder:
         verseBlockOrderRaw != null
           ? JSON.parse(verseBlockOrderRaw)
@@ -307,8 +290,6 @@ export function savePersistedLocal(state: PersistedState): void {
   localStorage.setItem(K_RESOLUME_LAYOUT, JSON.stringify(state.resolumeLayout));
   localStorage.setItem(K_TYPO, JSON.stringify(state.typography));
   localStorage.setItem(K_RESOLUME_TYPO, JSON.stringify(state.resolumeTypography));
-  localStorage.setItem(K_SCHEMA_EN, JSON.stringify(state.schemaEn));
-  localStorage.setItem(K_SCHEMA_HI, JSON.stringify(state.schemaHi));
   localStorage.setItem(K_VERSE_BLOCK_ORDER, JSON.stringify(state.verseBlockOrder));
   localStorage.setItem(K_HINDI_SOURCE, state.hindiSourceId);
   localStorage.setItem(
@@ -327,8 +308,14 @@ export async function loadPersistedRemote(): Promise<{
   const payload = await fetchSharedState();
   if (!payload) return { state: {}, updatedAt: null };
   const { updatedAt, ...rest } = payload;
+  const normalized = normalizePersisted(rest);
+  const images = await fetchSharedBackgrounds();
+  const selectedIndex = normalized.backgrounds?.selectedIndex ?? 0;
   return {
-    state: normalizePersisted(rest),
+    state: {
+      ...normalized,
+      backgrounds: normalizeBackgroundSlots({ images, selectedIndex }),
+    },
     updatedAt: typeof updatedAt === "number" ? updatedAt : null,
   };
 }
@@ -338,6 +325,12 @@ export async function savePersistedRemote(
   updatedAt?: number,
 ): Promise<number> {
   return saveSharedState(state, updatedAt);
+}
+
+export async function savePersistedRemoteBackgrounds(
+  slots: BackgroundSlots,
+): Promise<void> {
+  await saveSharedBackgroundSlots(slots);
 }
 
 export type { SharedStatePayload };
