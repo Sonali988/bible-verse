@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { fileToCompressedBackgroundDataUrl } from "../lib/compressBackground";
 import {
   saveLocalBackgroundSlots,
   savePersistedLocal,
   savePersistedRemote,
+  savePersistedRemoteBackgrounds,
   type PersistedState,
 } from "../lib/storage";
 
@@ -42,20 +44,38 @@ export function useAppPersistence(
 
     if (skipInitialRemoteSaveRef.current) {
       skipInitialRemoteSaveRef.current = false;
+      lastBackgroundsRef.current = snapshot.backgrounds;
       return;
     }
+
+    const backgroundsChanged =
+      lastBackgroundsRef.current !== snapshot.backgrounds;
 
     window.clearTimeout(sharedSaveTimerRef.current);
     setSharedSaveState("saving");
     sharedSaveTimerRef.current = window.setTimeout(() => {
-      void savePersistedRemote(snapshot, remoteUpdatedAtRef.current ?? undefined)
-        .then((updatedAt) => {
+      void (async () => {
+        try {
+          if (backgroundsChanged) {
+            lastBackgroundsRef.current = snapshot.backgrounds;
+            await savePersistedRemoteBackgrounds(snapshot.backgrounds);
+          }
+          const updatedAt = await savePersistedRemote(
+            snapshot,
+            remoteUpdatedAtRef.current ?? undefined,
+          );
           remoteUpdatedAtRef.current = updatedAt;
           setSharedSaveState("saved");
-        })
-        .catch(() => {
+          setBgSaveWarning(null);
+        } catch (e) {
           setSharedSaveState("error");
-        });
+          const message =
+            e instanceof Error ? e.message : "Failed to save shared state";
+          if (/background|413|too large/i.test(message)) {
+            setBgSaveWarning(message);
+          }
+        }
+      })();
     }, 800);
 
     return () => {
@@ -65,8 +85,6 @@ export function useAppPersistence(
 
   return { sharedSaveState, bgSaveWarning, setBgSaveWarning };
 }
-
-const MAX_BG_DATA_URL_CHARS = 4_500_000;
 
 export function readBackgroundFile(
   file: File | null,
@@ -82,20 +100,13 @@ export function readBackgroundFile(
     console.warn("Background file is not a supported image type:", file.type);
     return;
   }
-  const r = new FileReader();
-  r.onload = () => {
-    const dataUrl = String(r.result);
-    if (dataUrl.length > MAX_BG_DATA_URL_CHARS) {
-      onWarning(
-        "Background image is too large to save. Use a smaller file or replace public/bg.png.",
-      );
-      return;
-    }
-    onDataUrl(dataUrl);
-  };
-  r.onerror = () => {
-    console.error("Could not read background image file");
-    onDataUrl(null);
-  };
-  r.readAsDataURL(file);
+  void fileToCompressedBackgroundDataUrl(file)
+    .then((dataUrl) => onDataUrl(dataUrl))
+    .catch((e) => {
+      const message =
+        e instanceof Error
+          ? e.message
+          : "Could not prepare background image for save.";
+      onWarning(message);
+    });
 }
