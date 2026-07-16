@@ -13,32 +13,21 @@ function previewCardElement(
   return document.getElementById(elId);
 }
 
+/** Horizontal-only: scroll the strip so the card is centered, without moving the page. */
 function scrollPreviewCardInStrip(id: string, variant: ExportVariant): void {
-  previewCardElement(id, variant)?.scrollIntoView({
-    behavior: "smooth",
-    inline: "center",
-    block: "nearest",
-  });
+  const el = previewCardElement(id, variant);
+  if (!el) return;
+  const strip = el.closest(".preview-cards-strip");
+  if (!(strip instanceof HTMLElement)) return;
+  const target =
+    el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
+  strip.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
 }
 
-function scrollPreviewCard(id: string, variant: ExportVariant): void {
-  previewCardElement(id, variant)?.scrollIntoView({
-    behavior: "smooth",
-    inline: "nearest",
-    block: "nearest",
-  });
-}
-
-/** Page queue: bring both preview strips into view and center the card in each. */
+/** Page queue: center the card in each preview strip (no vertical page scroll). */
 export function scrollBothPreviewCards(id: string): void {
-  document.querySelector(".preview-dual-stack")?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
-  requestAnimationFrame(() => {
-    scrollPreviewCardInStrip(id, "live");
-    scrollPreviewCardInStrip(id, "resolume");
-  });
+  scrollPreviewCardInStrip(id, "live");
+  scrollPreviewCardInStrip(id, "resolume");
 }
 
 export function scrollPreviewToPage(
@@ -48,6 +37,6 @@ export function scrollPreviewToPage(
   if (target === "both") {
     scrollBothPreviewCards(id);
   } else {
-    scrollPreviewCard(id, target);
+    scrollPreviewCardInStrip(id, target);
   }
 }
