@@ -64,7 +64,10 @@ export async function renderNodeToPng(
     height: h,
     canvasWidth: w,
     canvasHeight: h,
-    fontEmbedCSS: options?.fontEmbedCSS,
+    // Prefer our inlined same-origin fonts; skip remote stylesheet scraping (CORS).
+    ...(options?.fontEmbedCSS
+      ? { fontEmbedCSS: options.fontEmbedCSS, skipFonts: true }
+      : {}),
   });
   if (!blob) throw new Error("PNG export failed");
   return blob;
