@@ -191,19 +191,15 @@ export const DEFAULT_CARD_BACKGROUND_COLOR = "#554111";
 export const DEFAULT_TITLE_FONT_PX_HI = 48;
 export const DEFAULT_TITLE_FONT_PX_EN = 50;
 
-/** Pairing 1: Poppins (EN) + Noto Sans Devanagari (HI). */
+/** Pairing 1: Poppins (EN + HI Devanagari) with Noto Sans Devanagari fallback. */
 export const FONT_STACK_EN =
   '"Poppins", system-ui, sans-serif';
-/**
- * Devanagari must lead: browsers fall through Poppins → Noto for Hindi glyphs,
- * but html-to-image often embeds the first face and skips Unicode-range fallback.
- */
 export const FONT_STACK_HI =
-  '"Noto Sans Devanagari", "Poppins", system-ui, sans-serif';
-
-/** Previous HI stack (Poppins first); rewritten on load so export matches preview. */
-const LEGACY_FONT_STACK_HI =
   '"Poppins", "Noto Sans Devanagari", system-ui, sans-serif';
+
+/** Brief Noto-first default from an earlier export fix; restore Poppins pairing. */
+const NOTO_FIRST_FONT_STACK_HI =
+  '"Noto Sans Devanagari", "Poppins", system-ui, sans-serif';
 
 export const defaultTypography = (): TypographySpec => ({
   fontFamilyEn: FONT_STACK_EN,
@@ -297,9 +293,9 @@ export function normalizeTypography(
   );
 }
 
-/** Rewrite Poppins-first HI stack so PNG export uses Noto for Devanagari. */
+/** Undo Noto-first HI stack so Hindi matches Poppins Devanagari in preview. */
 function repairStaleFontFamilyHi(t: TypographySpec): TypographySpec {
-  if (t.fontFamilyHi === LEGACY_FONT_STACK_HI) {
+  if (t.fontFamilyHi === NOTO_FIRST_FONT_STACK_HI) {
     return { ...t, fontFamilyHi: FONT_STACK_HI };
   }
   return t;

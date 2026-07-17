@@ -9,6 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/noto-sans": "^5.2.10",
+    "@fontsource/noto-sans-devanagari": "^5.2.8",
+    "@fontsource/poppins": "^5.2.7",
     "@upstash/redis": "^1.38.0",
     "@vercel/node": "^5.8.12",
     "fflate": "^0.8.3",
