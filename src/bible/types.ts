@@ -191,10 +191,18 @@ export const DEFAULT_CARD_BACKGROUND_COLOR = "#554111";
 export const DEFAULT_TITLE_FONT_PX_HI = 48;
 export const DEFAULT_TITLE_FONT_PX_EN = 50;
 
-/** Pairing 1: Poppins (EN) + Poppins / Noto Sans Devanagari (HI). */
+/** Pairing 1: Poppins (EN) + Noto Sans Devanagari (HI). */
 export const FONT_STACK_EN =
   '"Poppins", system-ui, sans-serif';
+/**
+ * Devanagari must lead: browsers fall through Poppins → Noto for Hindi glyphs,
+ * but html-to-image often embeds the first face and skips Unicode-range fallback.
+ */
 export const FONT_STACK_HI =
+  '"Noto Sans Devanagari", "Poppins", system-ui, sans-serif';
+
+/** Previous HI stack (Poppins first); rewritten on load so export matches preview. */
+const LEGACY_FONT_STACK_HI =
   '"Poppins", "Noto Sans Devanagari", system-ui, sans-serif';
 
 export const defaultTypography = (): TypographySpec => ({
@@ -272,17 +280,29 @@ export function normalizeTypography(
     rest.titleFontPxHi === undefined &&
     rest.titleFontPxEn === undefined
   ) {
-    return repairStaleTitleFontPair(
-      coerceTitleFontSizes(
-        coerceAlignFields({
-          ...withLines,
-          titleFontPxHi: DEFAULT_TITLE_FONT_PX_HI,
-          titleFontPxEn: DEFAULT_TITLE_FONT_PX_EN,
-        }),
+    return repairStaleFontFamilyHi(
+      repairStaleTitleFontPair(
+        coerceTitleFontSizes(
+          coerceAlignFields({
+            ...withLines,
+            titleFontPxHi: DEFAULT_TITLE_FONT_PX_HI,
+            titleFontPxEn: DEFAULT_TITLE_FONT_PX_EN,
+          }),
+        ),
       ),
     );
   }
-  return repairStaleTitleFontPair(coerceTitleFontSizes(coerceAlignFields(withLines)));
+  return repairStaleFontFamilyHi(
+    repairStaleTitleFontPair(coerceTitleFontSizes(coerceAlignFields(withLines))),
+  );
+}
+
+/** Rewrite Poppins-first HI stack so PNG export uses Noto for Devanagari. */
+function repairStaleFontFamilyHi(t: TypographySpec): TypographySpec {
+  if (t.fontFamilyHi === LEGACY_FONT_STACK_HI) {
+    return { ...t, fontFamilyHi: FONT_STACK_HI };
+  }
+  return t;
 }
 
 /** Old migration copied one `titleFontPx` into both fields (often 26×26); bump to current defaults. */

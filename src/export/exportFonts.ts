@@ -56,6 +56,16 @@ export async function ensureCardFontsReady(
         SAMPLE_DEVANAGARI,
       ),
     );
+    // Explicit face load: stack strings alone can resolve to Poppins before Noto is ready.
+    loads.push(
+      document.fonts.load(
+        `${weight} 32px "Noto Sans Devanagari"`,
+        SAMPLE_DEVANAGARI,
+      ),
+    );
+    loads.push(
+      document.fonts.load(`${weight} 32px "Poppins"`, SAMPLE_LATIN),
+    );
   }
   await Promise.allSettled(loads);
   await document.fonts.ready;
