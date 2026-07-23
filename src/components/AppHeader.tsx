@@ -1,5 +1,7 @@
 import { formatReference } from "../lib/referenceParser";
 import type { VersePage } from "../bible/types";
+import { LIVE_PREVIEW_PATH } from "../lib/livePresent";
+import { navigate } from "../lib/pathRouter";
 
 type Props = {
   sidebarOpen: boolean;
@@ -91,6 +93,13 @@ export function AppHeader({
               onClick={onToggleEditRail}
             >
               {editRailOpen ? "Hide edit panel" : "Edit card layout"}
+            </button>
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={() => navigate(LIVE_PREVIEW_PATH)}
+            >
+              Live present
             </button>
             <span className="chip">
               Currently selected {providerEnLabel} + {providerHiLabel}

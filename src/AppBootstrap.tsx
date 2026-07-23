@@ -7,6 +7,10 @@ import {
   remoteStorageEnabled,
   type PersistedState,
 } from "./lib/storage";
+import { usePathname } from "./lib/pathRouter";
+import { LIVE_OUTPUT_PATH, LIVE_PREVIEW_PATH } from "./lib/livePresent";
+import LivePreviewPage from "./pages/LivePreviewPage";
+import LiveOutputPage from "./pages/LiveOutputPage";
 
 export type AppBootstrapData = {
   persisted: Partial<PersistedState>;
@@ -22,7 +26,7 @@ async function loadLocalBootstrap(): Promise<AppBootstrapData> {
   };
 }
 
-export default function AppBootstrap() {
+function EditorBootstrap() {
   const remote = remoteStorageEnabled();
   const [boot, setBoot] = useState<AppBootstrapData | null>(null);
   const [remountKey, setRemountKey] = useState(0);
@@ -80,4 +84,17 @@ export default function AppBootstrap() {
       onReloadShared={remote ? reloadRemote : undefined}
     />
   );
+}
+
+export default function AppBootstrap() {
+  const path = usePathname();
+
+  if (path === LIVE_OUTPUT_PATH) {
+    return <LiveOutputPage />;
+  }
+  if (path === LIVE_PREVIEW_PATH) {
+    return <LivePreviewPage />;
+  }
+
+  return <EditorBootstrap />;
 }

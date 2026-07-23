@@ -93,6 +93,15 @@ To let everyone on [your deployed app](https://bible-verse-two.vercel.app/) see 
 
 **Not synced:** custom background images still use localStorage (too large for Redis). Use a committed `public/bg.png` or [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) if you need a shared background later.
 
+## Live present (extended monitor)
+
+1. Build cards in the main editor, then open **Live present** (or go to `/live`).
+2. Select a verse in the queue and check it in the **Preview** panel.
+3. Click **Present**, then **Open output window** (`/live/output`).
+4. Drag the output window to your extended monitor and press **Fullscreen** (or `F`).
+
+The output page shows only the Live card that you presented — not the preview chrome.
+
 ## Highlights
 
 Select a page in the queue, then in each language box **select text** in the read-only textarea and **release the mouse** to add a highlight range. Remove ranges from the list as needed.

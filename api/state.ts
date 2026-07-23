@@ -16,6 +16,7 @@ export type SharedAppState = {
   backgrounds: {
     selectedIndex: number;
   };
+  liveOutputPageId?: string | null;
 };
 
 function resolveRedis(): Redis {
@@ -83,6 +84,13 @@ export default async function handler(
                 )
               : 0,
         },
+        liveOutputPageId:
+          typeof body.liveOutputPageId === "string" &&
+          body.liveOutputPageId.trim()
+            ? body.liveOutputPageId.trim()
+            : body.liveOutputPageId === null
+              ? null
+              : undefined,
         updatedAt: Date.now(),
       };
       await redis.set(STATE_KEY, payload);
