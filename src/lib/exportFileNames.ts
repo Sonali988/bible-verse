@@ -8,11 +8,11 @@ function sanitizeFileName(s: string): string {
 
 function labelAbbrev(label: string): string {
   const trimmed = label.trim();
-  if (trimmed.length >= 2) return trimmed.slice(0, 2);
-  return trimmed || "xx";
+  if (trimmed.length >= 2) return trimmed.slice(0, 2).toLowerCase();
+  return (trimmed || "xx").toLowerCase();
 }
 
-export function versionFilePrefix(
+export function versionFileSuffix(
   englishLabel: string,
   hindiLabel: string,
   verseBlockOrder: VerseBlockOrder,
@@ -21,6 +21,9 @@ export function versionFilePrefix(
   const hi = labelAbbrev(hindiLabel);
   return verseBlockOrder === "en-first" ? `${en}-${hi}` : `${hi}-${en}`;
 }
+
+/** @deprecated Use {@link versionFileSuffix} — versions are now at the end of the name. */
+export const versionFilePrefix = versionFileSuffix;
 
 export function datedZipFileName(suffix: string): string {
   const d = new Date();
@@ -39,8 +42,8 @@ export function exportPngFileName(
 ): string {
   const englishLabel = page.versionLabelEn ?? fallbackEnglishLabel;
   const hindiLabel = page.versionLabelHi ?? fallbackHindiLabel;
-  const prefix = versionFilePrefix(englishLabel, hindiLabel, verseBlockOrder);
-  return `${prefix}-${sanitizeFileName(formatReference(page.ref))}-${variant}.png`;
+  const versions = versionFileSuffix(englishLabel, hindiLabel, verseBlockOrder);
+  return `${sanitizeFileName(formatReference(page.ref))}-${versions}-${variant}.png`;
 }
 
 /** Ensure unique names within one export batch (ZIP or multi-download). */
