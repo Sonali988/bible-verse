@@ -1,4 +1,4 @@
-export type HindiSourceId = "sqlite" | "hhbd" | "biblecom";
+export type HindiSourceId = "sqlite" | "hhbd" | "hsb" | "biblecom";
 
 export type HindiSource = {
   id: HindiSourceId;
@@ -9,6 +9,7 @@ export type HindiSource = {
 export const HINDI_SOURCES: readonly HindiSource[] = [
   { id: "sqlite", label: "HINOVBSI", detail: "SQLite bundled" },
   { id: "hhbd", label: "HHBD", detail: "YouVersion API" },
+  { id: "hsb", label: "HSB", detail: "YouVersion API" },
   // { id: "biblecom", label: "HINOVBSI", detail: "Bible.com API" },
 ] as const;
 
@@ -34,7 +35,7 @@ export function hindiSourceLabel(id: HindiSourceId): string {
 }
 
 export function hindiSourceUsesYouVersion(id: HindiSourceId): boolean {
-  return id === "hhbd";
+  return id === "hhbd" || id === "hsb";
 }
 
 export function hindiSourceUsesBibleCom(id: HindiSourceId): boolean {
