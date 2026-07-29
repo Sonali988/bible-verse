@@ -18,6 +18,13 @@ export const YOUVERSION_HHBD: YouVersionBibleConfig = {
   label: "HHBD",
 };
 
+/** Hindi Standard Bible (HSB) — YouVersion Platform bible id 3540. */
+export const YOUVERSION_HSB: YouVersionBibleConfig = {
+  bibleId: 3540,
+  abbreviation: "HSB",
+  label: "HSB",
+};
+
 export function youVersionAppKey(): string {
   const key = import.meta.env.VITE_YOUVERSION_APP_KEY?.trim();
   if (!key) {

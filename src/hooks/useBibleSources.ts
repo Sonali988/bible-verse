@@ -9,7 +9,7 @@ import { EmptyBibleProvider } from "../bible/EmptyBibleProvider";
 import { BibleComProvider } from "../bible/bibleCom/BibleComProvider";
 import { BIBLE_COM_HI } from "../bible/bibleCom/config";
 import { YouVersionProvider } from "../bible/youversion/YouVersionProvider";
-import { YOUVERSION_HHBD, YOUVERSION_TPT } from "../bible/youversion/config";
+import { YOUVERSION_HHBD, YOUVERSION_HSB, YOUVERSION_TPT } from "../bible/youversion/config";
 import {
   BUNDLED_HI_SQLITE_URL,
   fetchSqliteArrayBuffer,
@@ -107,11 +107,16 @@ export function useBibleSources(persisted: PersistedSlice) {
     }
 
     if (hindiSourceUsesYouVersion(hindiSourceId)) {
+      const youVersionHi =
+        hindiSourceId === "hsb" ? YOUVERSION_HSB : YOUVERSION_HHBD;
       setProviderHi((prev) => {
-        if (prev instanceof YouVersionProvider && prev.versionLabel === hindiLabel) {
+        if (
+          prev instanceof YouVersionProvider &&
+          prev.versionLabel === hindiLabel
+        ) {
           return prev;
         }
-        return new YouVersionProvider(YOUVERSION_HHBD);
+        return new YouVersionProvider(youVersionHi);
       });
     } else if (hindiSourceUsesBibleCom(hindiSourceId)) {
       setProviderHi((prev) => {
