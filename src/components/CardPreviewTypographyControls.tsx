@@ -3,14 +3,20 @@ import {
   MAX_VERSE_BODY_FONT_PX,
   type PageTypographyOverrides,
   type TypographySpec,
+  type VersePage,
 } from "../bible/types";
-import { TitleVerseStyleModal } from "./TitleVerseStyleModal";
+import { defaultVerseTitleEn, defaultVerseTitleHi } from "../lib/verseTitles";
+import { TitleVerseStyleModal, type VerseTitleOverridesPatch } from "./TitleVerseStyleModal";
 
 type Props = {
   previewLabel: string;
   typography: TypographySpec;
   enabled: boolean;
+  selected: VersePage | null;
+  englishLabel: string;
+  hindiLabel: string;
   onUpdate: (patch: PageTypographyOverrides) => void;
+  onUpdateTitles: (patch: VerseTitleOverridesPatch) => void;
 };
 
 function Num({
@@ -89,9 +95,19 @@ export function CardPreviewTypographyControls({
   previewLabel,
   typography,
   enabled,
+  selected,
+  englishLabel,
+  hindiLabel,
   onUpdate,
+  onUpdateTitles,
 }: Props) {
   const [styleModalOpen, setStyleModalOpen] = useState(false);
+  const defaultTitleHi = selected
+    ? defaultVerseTitleHi(selected, selected.versionLabelHi ?? hindiLabel)
+    : "";
+  const defaultTitleEn = selected
+    ? defaultVerseTitleEn(selected, selected.versionLabelEn ?? englishLabel)
+    : "";
 
   return (
     <div
@@ -181,7 +197,12 @@ export function CardPreviewTypographyControls({
         previewLabel={previewLabel}
         typography={typography}
         enabled={enabled}
+        defaultTitleHi={defaultTitleHi}
+        defaultTitleEn={defaultTitleEn}
+        titleHiOverride={selected?.titleHiOverride}
+        titleEnOverride={selected?.titleEnOverride}
         onUpdate={onUpdate}
+        onUpdateTitles={onUpdateTitles}
         onClose={() => setStyleModalOpen(false)}
       />
     </div>

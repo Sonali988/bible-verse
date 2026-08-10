@@ -14,7 +14,7 @@ import {
   liveCardRect,
   type VerseBlockOrder,
 } from "../lib/verseBlockOrder";
-import { formatHindiReference, formatReference } from "../lib/referenceParser";
+import { verseTitleEn, verseTitleHi } from "../lib/verseTitles";
 import { highlightSegments } from "../lib/highlightSegments";
 import { verseBodyEdgePadding, liveHindiTitleEdgePadding } from "../lib/verseBoxStyle";
 
@@ -84,11 +84,8 @@ export function VerseCard({
 
   const hasRasterBg = Boolean(backgroundDataUrl?.trim());
 
-  const titleLineEn = (refLabel: string, version: string) =>
-    `${refLabel} ${version}`;
-
-  const refLabelEn = formatReference(page.ref);
-  const titleHiText = `${formatHindiReference(page.ref)} ${versionLabelHi}`;
+  const titleHiText = verseTitleHi(page, versionLabelHi);
+  const titleEnText = verseTitleEn(page, versionLabelEn);
 
   const blockSequence = liveCardBlockSequence(verseBlockOrder);
   const blockRects = blockSequence.map((kind) =>
@@ -242,7 +239,7 @@ export function VerseCard({
                     textAlign: typography.titleTextAlign,
                   }}
                 >
-                  {titleLineEn(refLabelEn, versionLabelEn)}
+                  {titleEnText}
                 </div>
               </div>
             );

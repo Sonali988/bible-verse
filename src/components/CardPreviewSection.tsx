@@ -35,6 +35,7 @@ type Props = {
   onSelectPage: (id: string, target: PreviewScrollTarget) => void;
   onUpdateLiveTypography: (patch: PageTypographyOverrides) => void;
   onUpdateResolumeTypography: (patch: PageTypographyOverrides) => void;
+  onUpdateTitles: (patch: { titleHiOverride?: string; titleEnOverride?: string }) => void;
 };
 
 export function CardPreviewSection({
@@ -59,6 +60,7 @@ export function CardPreviewSection({
   onSelectPage,
   onUpdateLiveTypography,
   onUpdateResolumeTypography,
+  onUpdateTitles,
 }: Props) {
   return (
     <>
@@ -147,7 +149,11 @@ export function CardPreviewSection({
             previewLabel="Live"
             typography={selectedLiveTypography}
             enabled={Boolean(selected)}
+            selected={selected}
+            englishLabel={englishLabel}
+            hindiLabel={hindiLabel}
             onUpdate={onUpdateLiveTypography}
+            onUpdateTitles={onUpdateTitles}
           />
         </CollapsiblePanel>
 
@@ -222,7 +228,11 @@ export function CardPreviewSection({
             previewLabel="Resolume"
             typography={selectedResolumeTypography}
             enabled={Boolean(selected)}
+            selected={selected}
+            englishLabel={englishLabel}
+            hindiLabel={hindiLabel}
             onUpdate={onUpdateResolumeTypography}
+            onUpdateTitles={onUpdateTitles}
           />
         </CollapsiblePanel>
       </div>
