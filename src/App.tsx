@@ -233,6 +233,7 @@ export default function App({
                 onOpenExport={() => cardExport.setExportModalOpen(true)}
                 onUpdateHighlights={queue.updateSelectedHighlights}
                 onUpdateText={queue.updateSelectedText}
+                onUpdateTitles={queue.updateSelectedTitles}
                 labelEn={bible.englishLabel}
                 labelHi={bible.hindiLabel}
               />
@@ -276,7 +277,6 @@ export default function App({
                     queue.setPages,
                   )
                 }
-                onUpdateTitles={queue.updateSelectedTitles}
               />
             </div>
           </div>
