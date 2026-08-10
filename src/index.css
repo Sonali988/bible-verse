@@ -1278,6 +1278,24 @@ textarea {
   width: min(100%, 32rem);
 }
 
+.title-verse-style-modal__titles {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.title-verse-style-modal__titles summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.title-verse-style-modal__titles .design-toolbar__row {
+  margin-top: 0.75rem;
+}
+
 .confirm-modal {
   width: min(100%, 22rem);
 }

@@ -262,6 +262,7 @@ export default function App({
                     queue.setPages,
                   )
                 }
+                onUpdateTitles={queue.updateSelectedTitles}
               />
             </div>
           </div>

@@ -1,12 +1,22 @@
 import { useEffect } from "react";
 import type { PageTypographyOverrides, TypographySpec } from "../bible/types";
 
+export type VerseTitleOverridesPatch = {
+  titleHiOverride?: string;
+  titleEnOverride?: string;
+};
+
 type Props = {
   open: boolean;
   previewLabel: string;
   typography: TypographySpec;
   enabled: boolean;
+  defaultTitleHi: string;
+  defaultTitleEn: string;
+  titleHiOverride?: string;
+  titleEnOverride?: string;
   onUpdate: (patch: PageTypographyOverrides) => void;
+  onUpdateTitles: (patch: VerseTitleOverridesPatch) => void;
   onClose: () => void;
 };
 
@@ -15,7 +25,12 @@ export function TitleVerseStyleModal({
   previewLabel,
   typography,
   enabled,
+  defaultTitleHi,
+  defaultTitleEn,
+  titleHiOverride,
+  titleEnOverride,
   onUpdate,
+  onUpdateTitles,
   onClose,
 }: Props) {
   useEffect(() => {
@@ -77,6 +92,55 @@ export function TitleVerseStyleModal({
             </select>
           </label>
         </div>
+
+        <details className="title-verse-style-modal__titles">
+          <summary>Title text</summary>
+          {!enabled ? (
+            <p className="hint">Select a card to edit its title lines.</p>
+          ) : (
+            <div className="design-toolbar__row design-toolbar__row--controls">
+              <label className="toolbar-field toolbar-field--wide">
+                <span>Hindi title</span>
+                <input
+                  type="text"
+                  value={titleHiOverride ?? ""}
+                  placeholder={defaultTitleHi}
+                  disabled={!enabled}
+                  onChange={(e) =>
+                    onUpdateTitles({ titleHiOverride: e.target.value })
+                  }
+                />
+              </label>
+              <label className="toolbar-field toolbar-field--wide">
+                <span>English title</span>
+                <input
+                  type="text"
+                  value={titleEnOverride ?? ""}
+                  placeholder={defaultTitleEn}
+                  disabled={!enabled}
+                  onChange={(e) =>
+                    onUpdateTitles({ titleEnOverride: e.target.value })
+                  }
+                />
+              </label>
+              {(titleHiOverride || titleEnOverride) && (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  disabled={!enabled}
+                  onClick={() =>
+                    onUpdateTitles({
+                      titleHiOverride: "",
+                      titleEnOverride: "",
+                    })
+                  }
+                >
+                  Reset to default
+                </button>
+              )}
+            </div>
+          )}
+        </details>
       </div>
     </div>
   );
