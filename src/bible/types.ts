@@ -84,6 +84,10 @@ export type VersePage = {
   typographySizes?: PageTypographyOverrides;
   /** Resolume preview: per-card typography overrides (not shared with Live). */
   resolumeTypographySizes?: PageTypographyOverrides;
+  /** Optional custom Hindi section title (reference + version line). */
+  titleHiOverride?: string;
+  /** Optional custom English section title (reference + version line). */
+  titleEnOverride?: string;
 };
 
 const PAGE_TYPOGRAPHY_OVERRIDE_KEYS = [

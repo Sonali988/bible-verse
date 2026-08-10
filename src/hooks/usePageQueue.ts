@@ -131,6 +131,30 @@ export function usePageQueue(
     [selected, design],
   );
 
+  const updateSelectedTitles = useCallback(
+    (patch: { titleHiOverride?: string; titleEnOverride?: string }) => {
+      if (!selected) return;
+      setPages((list) =>
+        list.map((p) => {
+          if (p.id !== selected.id) return p;
+          const next = { ...p };
+          if ("titleHiOverride" in patch) {
+            const value = patch.titleHiOverride?.trim();
+            if (value) next.titleHiOverride = value;
+            else delete next.titleHiOverride;
+          }
+          if ("titleEnOverride" in patch) {
+            const value = patch.titleEnOverride?.trim();
+            if (value) next.titleEnOverride = value;
+            else delete next.titleEnOverride;
+          }
+          return next;
+        }),
+      );
+    },
+    [selected],
+  );
+
   const removePage = useCallback(
     (id: string) => {
       setPages((xs) => xs.filter((x) => x.id !== id));
@@ -155,6 +179,7 @@ export function usePageQueue(
     addPage,
     updateSelectedHighlights,
     updateSelectedText,
+    updateSelectedTitles,
     removePage,
     removeAllPages,
   };

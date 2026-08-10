@@ -10,7 +10,7 @@ import {
   type TypographySpec,
   type VersePage,
 } from "../bible/types";
-import { formatHindiReference, formatReference } from "../lib/referenceParser";
+import { verseTitleEn, verseTitleHi } from "../lib/verseTitles";
 import { highlightSegments } from "../lib/highlightSegments";
 import { verseBodyRect, type VerseBlockOrder } from "../lib/verseBlockOrder";
 import {
@@ -69,8 +69,8 @@ export function ResolumeVerseCard({
 
   const hasRasterBg = Boolean(backgroundDataUrl?.trim());
   const combinedTitle = layout.titleHi;
-  const hiTitle = `${formatHindiReference(page.ref)} ${versionLabelHi}`;
-  const enTitle = `${formatReference(page.ref)} ${versionLabelEn}`;
+  const hiTitle = verseTitleHi(page, versionLabelHi);
+  const enTitle = verseTitleEn(page, versionLabelEn);
   const hiBodyRect = verseBodyRect(layout, "hi", verseBlockOrder);
   const enBodyRect = verseBodyRect(layout, "en", verseBlockOrder);
   const titleParts =
