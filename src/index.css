@@ -1168,6 +1168,38 @@ textarea {
   border-radius: 999px;
 }
 
+.page-queue-highlights__head-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.verse-title-modal {
+  width: min(100%, 32rem);
+}
+
+.verse-title-modal__hint {
+  margin: 0 0 0.85rem;
+}
+
+.verse-title-modal__fields {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.verse-title-modal__fields .toolbar-field--wide input[type="text"] {
+  width: 100%;
+}
+
+.verse-title-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
 .highlight-editor {
   margin-top: 0.75rem;
 }
@@ -1276,24 +1308,6 @@ textarea {
 
 .title-verse-style-modal {
   width: min(100%, 32rem);
-}
-
-.title-verse-style-modal__titles {
-  margin-top: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border);
-}
-
-.title-verse-style-modal__titles summary {
-  cursor: pointer;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  user-select: none;
-}
-
-.title-verse-style-modal__titles .design-toolbar__row {
-  margin-top: 0.75rem;
 }
 
 .confirm-modal {

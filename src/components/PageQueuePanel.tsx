@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { HighlightRange, VersePage } from "../bible/types";
 import { formatReference } from "../lib/referenceParser";
 import { ConfirmModal } from "./ConfirmModal";
 import { HighlightEditor } from "./HighlightEditor";
+import { VerseTitleModal } from "./VerseTitleModal";
 
 type Props = {
   pages: VersePage[];
@@ -15,6 +16,7 @@ type Props = {
   onOpenExport: () => void;
   onUpdateHighlights: (lang: "en" | "hi", ranges: HighlightRange[]) => void;
   onUpdateText: (lang: "en" | "hi", text: string) => void;
+  onUpdateTitles: (patch: { titleHiOverride?: string; titleEnOverride?: string }) => void;
   labelEn: string;
   labelHi: string;
 };
@@ -34,10 +36,16 @@ export function PageQueuePanel({
   onOpenExport,
   onUpdateHighlights,
   onUpdateText,
+  onUpdateTitles,
   labelEn,
   labelHi,
 }: Props) {
   const [removeAllConfirmOpen, setRemoveAllConfirmOpen] = useState(false);
+  const [titleModalOpen, setTitleModalOpen] = useState(false);
+
+  useEffect(() => {
+    setTitleModalOpen(false);
+  }, [selectedId]);
 
   return (
     <section className="panel page-queue-panel">
@@ -136,7 +144,16 @@ export function PageQueuePanel({
                     Select text in each box below to add highlights on the card.
                   </p>
                 </div>
-                <span className="page-queue-highlights__badge">Edit mode</span>
+                <div className="page-queue-highlights__head-actions">
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => setTitleModalOpen(true)}
+                  >
+                    Edit title
+                  </button>
+                  <span className="page-queue-highlights__badge">Edit mode</span>
+                </div>
               </div>
               <HighlightEditor
                 key={`${selected.id}-hi`}
@@ -170,6 +187,17 @@ export function PageQueuePanel({
         onConfirm={onRemoveAll}
         onClose={() => setRemoveAllConfirmOpen(false)}
       />
+
+      {selected && (
+        <VerseTitleModal
+          open={titleModalOpen}
+          page={selected}
+          labelEn={labelEn}
+          labelHi={labelHi}
+          onUpdateTitles={onUpdateTitles}
+          onClose={() => setTitleModalOpen(false)}
+        />
+      )}
     </section>
   );
 }
