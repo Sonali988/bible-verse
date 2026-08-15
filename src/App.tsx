@@ -24,6 +24,7 @@ import {
 } from "./lib/storage";
 
 const SIDEBAR_ID = "app-sidebar-panel";
+const EDIT_RAIL_ID = "app-edit-rail-panel";
 
 export default function App({
   bootstrap,
@@ -154,6 +155,7 @@ export default function App({
         sharedSaveState={sharedSaveState}
         onReloadShared={onReloadShared}
         editRailOpen={editRailOpen}
+        editRailId={EDIT_RAIL_ID}
         providerEnLabel={bible.providerEn.versionLabel}
         providerHiLabel={bible.providerHi.versionLabel}
         onToggleSidebar={() => setSidebarOpen((open) => !open)}
@@ -269,6 +271,7 @@ export default function App({
 
           {editRailOpen && (
             <EditCardRail
+              editRailId={EDIT_RAIL_ID}
               workflowVariant={workflowVariant}
               verseBlockOrder={design.verseBlockOrder}
               cardLayout={design.cardLayout}

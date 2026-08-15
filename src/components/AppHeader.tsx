@@ -10,6 +10,7 @@ type Props = {
   sharedSaveState: "idle" | "saving" | "saved" | "error";
   onReloadShared?: () => Promise<void>;
   editRailOpen: boolean;
+  editRailId: string;
   providerEnLabel: string;
   providerHiLabel: string;
   onToggleSidebar: () => void;
@@ -25,6 +26,7 @@ export function AppHeader({
   sharedSaveState,
   onReloadShared,
   editRailOpen,
+  editRailId,
   providerEnLabel,
   providerHiLabel,
   onToggleSidebar,
@@ -88,6 +90,7 @@ export function AppHeader({
               type="button"
               className={editRailOpen ? "btn btn--sm" : "btn btn--ghost btn--sm"}
               aria-expanded={editRailOpen}
+              aria-controls={editRailId}
               onClick={onToggleEditRail}
             >
               {editRailOpen ? "Hide edit panel" : "Edit card layout"}
@@ -98,7 +101,20 @@ export function AppHeader({
           </div>
         </div>
         <div className="app-header__logo-wrap">
-          <img className="app-header__logo" src="/logo.png" alt="" decoding="async" />
+          <button
+            type="button"
+            className={
+              editRailOpen
+                ? "app-header__logo-btn app-header__logo-btn--active"
+                : "app-header__logo-btn"
+            }
+            aria-label={editRailOpen ? "Hide edit panel" : "Show edit panel"}
+            aria-expanded={editRailOpen}
+            aria-controls={editRailId}
+            onClick={onToggleEditRail}
+          >
+            <img className="app-header__logo" src="/logo.png" alt="" decoding="async" />
+          </button>
         </div>
       </div>
     </header>
