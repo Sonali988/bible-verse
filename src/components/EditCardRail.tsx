@@ -5,6 +5,7 @@ import type { ExportVariant } from "../export/exportVariant";
 import type { VerseBlockOrder } from "../lib/verseBlockOrder";
 
 type Props = {
+  editRailId: string;
   workflowVariant: ExportVariant;
   verseBlockOrder: VerseBlockOrder;
   cardLayout: LayoutSpec;
@@ -23,6 +24,7 @@ type Props = {
 };
 
 export function EditCardRail({
+  editRailId,
   workflowVariant,
   verseBlockOrder,
   cardLayout,
@@ -40,7 +42,7 @@ export function EditCardRail({
   onClose,
 }: Props) {
   return (
-    <aside className="app-edit-rail" aria-label="Edit card design">
+    <aside id={editRailId} className="app-edit-rail" aria-label="Edit card design">
       <div className="app-edit-rail__chrome">
         <p className="workflow-heading app-edit-rail__heading">Edit card</p>
         <button
