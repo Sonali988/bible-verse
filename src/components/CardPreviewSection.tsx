@@ -70,7 +70,7 @@ export function CardPreviewSection({
           </>
         ) : (
           <>
-            Use <strong>Edit card layout</strong> in the header to open the design panel.
+            Click the <strong>logo</strong> in the header to open the design panel.
             Click a preview card to adjust per-card font sizes below each strip.
           </>
         )}

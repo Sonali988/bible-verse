@@ -92,6 +92,33 @@ body {
   align-self: stretch;
 }
 
+.app-header__logo-btn {
+  display: inline-flex;
+  align-items: center;
+  align-self: stretch;
+  height: 100%;
+  padding: 0.2rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.app-header__logo-btn:hover {
+  border-color: var(--primary);
+  background: var(--panel-hover);
+}
+
+.app-header__logo-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.app-header__logo-btn--active {
+  border-color: var(--accent);
+  background: rgba(29, 90, 126, 0.12);
+}
+
 .app-header__logo {
   height: 100%;
   width: auto;
@@ -1166,38 +1193,6 @@ textarea {
   color: #fff;
   background: var(--accent);
   border-radius: 999px;
-}
-
-.page-queue-highlights__head-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.verse-title-modal {
-  width: min(100%, 32rem);
-}
-
-.verse-title-modal__hint {
-  margin: 0 0 0.85rem;
-}
-
-.verse-title-modal__fields {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.verse-title-modal__fields .toolbar-field--wide input[type="text"] {
-  width: 100%;
-}
-
-.verse-title-modal__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1rem;
 }
 
 .highlight-editor {

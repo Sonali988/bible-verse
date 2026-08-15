@@ -39,14 +39,11 @@ export function exportPngFileName(
   fallbackEnglishLabel: string,
   fallbackHindiLabel: string,
   verseBlockOrder: VerseBlockOrder,
-  options?: { includeVariant?: boolean },
 ): string {
   const englishLabel = page.versionLabelEn ?? fallbackEnglishLabel;
   const hindiLabel = page.versionLabelHi ?? fallbackHindiLabel;
   const versions = versionFileSuffix(englishLabel, hindiLabel, verseBlockOrder);
-  const stem = `${sanitizeFileName(formatReference(page.ref))}-${versions}`;
-  const includeVariant = options?.includeVariant !== false;
-  return includeVariant ? `${stem}-${variant}.png` : `${stem}.png`;
+  return `${sanitizeFileName(formatReference(page.ref))}-${versions}-${variant}.png`;
 }
 
 /** Ensure unique names within one export batch (ZIP or multi-download). */
@@ -56,7 +53,6 @@ export function uniqueExportPngFileNames(
   fallbackEnglishLabel: string,
   fallbackHindiLabel: string,
   verseBlockOrder: VerseBlockOrder,
-  options?: { includeVariant?: boolean },
 ): string[] {
   const seen = new Map<string, number>();
   return pages.map((page) => {
@@ -66,7 +62,6 @@ export function uniqueExportPngFileNames(
       fallbackEnglishLabel,
       fallbackHindiLabel,
       verseBlockOrder,
-      options,
     );
     const count = seen.get(base) ?? 0;
     seen.set(base, count + 1);
