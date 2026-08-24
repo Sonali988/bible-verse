@@ -3,6 +3,7 @@ import { formatReference } from "../lib/referenceParser";
 import type { ExportRasterHost } from "./ExportRasterHost";
 import type { ExportVariant } from "./exportVariant";
 import { buildFontEmbedCss, ensureCardFontsReady, getBaseCardFontEmbedCss } from "./exportFonts";
+import { compactPngBlob } from "./compressPng";
 import {
   forceLayout,
   renderNodeToPng,
@@ -115,7 +116,7 @@ export async function capturePngBlob(
     blob = await rasterizeNode(node, rasterSize());
 
     if (!(await exportLooksBlank(blob, node, page))) {
-      return blob;
+      return compactPngBlob(blob);
     }
   }
 

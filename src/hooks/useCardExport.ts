@@ -104,6 +104,7 @@ export function useCardExport(hostProps: ExportHostProps) {
           hostProps.englishLabel,
           hostProps.hindiLabel,
           hostProps.verseBlockOrder,
+          false,
         );
         const tracker = await runExportBatch(variant, list, "png", (p, blob, i) => {
           savePng(blob, names[i]!);
@@ -135,6 +136,7 @@ export function useCardExport(hostProps: ExportHostProps) {
           hostProps.englishLabel,
           hostProps.hindiLabel,
           hostProps.verseBlockOrder,
+          false,
         );
         const tracker = await runExportBatch(variant, list, "zip", (p, blob, i) => {
           entries.push({
