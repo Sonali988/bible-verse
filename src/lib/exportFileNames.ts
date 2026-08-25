@@ -71,6 +71,12 @@ export function uniqueExportPngFileNames(
     seen.set(base, count + 1);
     if (count === 0) return base;
     const stem = base.slice(0, -".png".length);
+    if (includeVariant) {
+      const suffix = `-${variant}`;
+      if (stem.endsWith(suffix)) {
+        return `${stem.slice(0, -suffix.length)}_${count + 1}${suffix}.png`;
+      }
+    }
     return `${stem}_${count + 1}.png`;
   });
 }
