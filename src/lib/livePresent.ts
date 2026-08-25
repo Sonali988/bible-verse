@@ -138,8 +138,3 @@ export function subscribeLivePresent(
     ch?.close();
   };
 }
-
-export function openLiveOutputWindow(): Window | null {
-  const url = `${window.location.origin}${LIVE_OUTPUT_PATH}`;
-  return window.open(url, "bvc-live-output", "noopener,noreferrer");
-}

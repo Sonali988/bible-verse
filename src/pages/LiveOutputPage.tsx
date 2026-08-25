@@ -1,27 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { LiveCardStage } from "../components/LiveCardStage";
+import { useCallback, useEffect, useState } from "react";
+import { LiveStageOutput } from "../components/LiveStageOutput";
 import { findPage, useLiveWorkspace } from "../hooks/useLiveWorkspace";
 import { LIVE_PREVIEW_PATH } from "../lib/livePresent";
 import { navigate } from "../lib/pathRouter";
 import { formatReference } from "../lib/referenceParser";
-
-function useContainScale(width: number, height: number): number {
-  const [scale, setScale] = useState(1);
-
-  useEffect(() => {
-    const update = () => {
-      const pad = 0;
-      const sw = (window.innerWidth - pad) / width;
-      const sh = (window.innerHeight - pad) / height;
-      setScale(Math.min(sw, sh, 1) > 0 ? Math.min(sw, sh) : 1);
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, [width, height]);
-
-  return scale;
-}
 
 export default function LiveOutputPage() {
   const { snapshot, backgroundUrl, error, reload } = useLiveWorkspace({
@@ -30,11 +12,13 @@ export default function LiveOutputPage() {
   const [chromeVisible, setChromeVisible] = useState(true);
 
   useEffect(() => {
+    document.title = "Live Output";
     document.body.classList.add("live-output-page");
     document.documentElement.classList.add("live-output-page");
     const root = document.getElementById("root");
     root?.classList.add("live-output-root");
     return () => {
+      document.title = "Bible verse cards";
       document.body.classList.remove("live-output-page");
       document.documentElement.classList.remove("live-output-page");
       root?.classList.remove("live-output-root");
@@ -45,14 +29,12 @@ export default function LiveOutputPage() {
     ? findPage(snapshot.pages, snapshot.liveOutputPageId)
     : null;
 
-  const layoutW = snapshot?.cardLayout.width ?? 1920;
-  const layoutH = snapshot?.cardLayout.height ?? 1080;
-  const scale = useContainScale(layoutW, layoutH);
-
   const goFullscreen = useCallback(async () => {
     try {
       if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
+        await document.documentElement.requestFullscreen({
+          navigationUI: "hide",
+        });
         setChromeVisible(false);
       }
     } catch {
@@ -61,6 +43,7 @@ export default function LiveOutputPage() {
   }, []);
 
   useEffect(() => {
+    let hideTimer = window.setTimeout(() => setChromeVisible(false), 2500);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "f" || e.key === "F") {
         e.preventDefault();
@@ -73,8 +56,18 @@ export default function LiveOutputPage() {
         setChromeVisible((v) => !v);
       }
     };
+    const bumpChrome = () => {
+      setChromeVisible(true);
+      window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => setChromeVisible(false), 2500);
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("mousemove", bumpChrome);
+    return () => {
+      window.clearTimeout(hideTimer);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousemove", bumpChrome);
+    };
   }, [goFullscreen]);
 
   useEffect(() => {
@@ -85,20 +78,18 @@ export default function LiveOutputPage() {
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
-  const statusText = useMemo(() => {
-    if (error) return error;
-    if (!snapshot) return "Loading…";
-    if (!snapshot.liveOutputPageId) return "Waiting for Present from Live preview…";
-    if (!livePage) return "Presented card not found in queue — clear or present again.";
-    return formatReference(livePage.ref);
-  }, [error, snapshot, livePage]);
+  const statusText = error
+    ? error
+    : !snapshot
+      ? "Loading…"
+      : !snapshot.liveOutputPageId
+        ? "Black — waiting for Present"
+        : !livePage
+          ? "Presented card missing from queue"
+          : formatReference(livePage.ref);
 
   return (
-    <div
-      className="live-output"
-      onMouseMove={() => setChromeVisible(true)}
-      onDoubleClick={() => void goFullscreen()}
-    >
+    <div className="live-output" onDoubleClick={() => void goFullscreen()}>
       {chromeVisible && (
         <div className="live-output__chrome">
           <button
@@ -126,28 +117,19 @@ export default function LiveOutputPage() {
         </div>
       )}
 
-      <div className="live-output__stage">
-        {snapshot && livePage ? (
-          <LiveCardStage
-            page={livePage}
-            layout={snapshot.cardLayout}
-            typography={snapshot.typography}
-            backgroundDataUrl={backgroundUrl}
-            versionLabelEn={snapshot.englishLabel}
-            versionLabelHi={snapshot.hindiLabel}
-            verseBlockOrder={snapshot.verseBlockOrder}
-            scale={scale}
-          />
-        ) : (
-          <div className="live-output__idle">
-            <p>{statusText}</p>
-            <p className="muted">
-              Open <strong>{LIVE_PREVIEW_PATH}</strong>, check a verse, then press
-              Present.
-            </p>
-          </div>
-        )}
-      </div>
+      {snapshot ? (
+        <LiveStageOutput
+          page={livePage}
+          layout={snapshot.cardLayout}
+          typography={snapshot.typography}
+          backgroundDataUrl={backgroundUrl}
+          versionLabelEn={snapshot.englishLabel}
+          versionLabelHi={snapshot.hindiLabel}
+          verseBlockOrder={snapshot.verseBlockOrder}
+        />
+      ) : (
+        <div className="live-stage-output" />
+      )}
     </div>
   );
 }

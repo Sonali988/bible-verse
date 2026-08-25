@@ -95,12 +95,14 @@ To let everyone on [your deployed app](https://bible-verse-two.vercel.app/) see 
 
 ## Live present (extended monitor)
 
-1. Build cards in the main editor, then open **Live present** (or go to `/live`).
-2. Select a verse in the queue and check it in the **Preview** panel.
-3. Click **Present**, then **Open output window** (`/live/output`).
-4. Drag the output window to your extended monitor and press **Fullscreen** (or `F`).
+Works like OpenLP / ProPresenter: the laptop stays on **Live present** (`/live`); the projector gets a black output stage.
 
-The output page shows only the Live card that you presented — not the preview chrome.
+1. Extend Windows to the projector (not Duplicate).
+2. Open **Live present**, choose **Output display** (the projector), then **Start output**.
+3. Chrome or Edge will ask for window-placement permission — allow it so the stage can go fullscreen on that screen.
+4. Check the verse in **Preview**, then press **Present**. **Clear output** blacks the projector without closing the stage.
+
+**Start output** uses the chosen display when the browser supports it. **Open output window** (`/live/output`) is the fallback: drag that window onto the projector and press `F` / double-click for fullscreen. The output stage never shows operator chrome — only the presented card, or black.
 
 ## Highlights
 
