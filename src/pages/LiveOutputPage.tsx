@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { LiveStageOutput } from "../components/LiveStageOutput";
 import { findPage, useLiveWorkspace } from "../hooks/useLiveWorkspace";
+import { useCaptureWakeLock } from "../hooks/useCaptureWakeLock";
 import { LIVE_PREVIEW_PATH } from "../lib/livePresent";
 import { navigate } from "../lib/pathRouter";
 import { formatReference } from "../lib/referenceParser";
@@ -9,7 +10,9 @@ export default function LiveOutputPage() {
   const { snapshot, backgroundUrl, error, reload } = useLiveWorkspace({
     pollMs: 1500,
   });
-  const [chromeVisible, setChromeVisible] = useState(true);
+  const [chromeVisible, setChromeVisible] = useState(false);
+
+  useCaptureWakeLock();
 
   useEffect(() => {
     document.title = "Live Output";
@@ -43,36 +46,27 @@ export default function LiveOutputPage() {
   }, []);
 
   useEffect(() => {
-    let hideTimer = window.setTimeout(() => setChromeVisible(false), 2500);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "f" || e.key === "F") {
         e.preventDefault();
         void goFullscreen();
       }
-      if (e.key === "Escape") {
-        setChromeVisible(true);
-      }
       if (e.key === "h" || e.key === "H") {
         setChromeVisible((v) => !v);
       }
     };
-    const bumpChrome = () => {
-      setChromeVisible(true);
-      window.clearTimeout(hideTimer);
-      hideTimer = window.setTimeout(() => setChromeVisible(false), 2500);
-    };
+    const blockMenu = (e: Event) => e.preventDefault();
     window.addEventListener("keydown", onKey);
-    window.addEventListener("mousemove", bumpChrome);
+    window.addEventListener("contextmenu", blockMenu);
     return () => {
-      window.clearTimeout(hideTimer);
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousemove", bumpChrome);
+      window.removeEventListener("contextmenu", blockMenu);
     };
   }, [goFullscreen]);
 
   useEffect(() => {
     const onFs = () => {
-      if (!document.fullscreenElement) setChromeVisible(true);
+      if (document.fullscreenElement) setChromeVisible(false);
     };
     document.addEventListener("fullscreenchange", onFs);
     return () => document.removeEventListener("fullscreenchange", onFs);

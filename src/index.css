@@ -2045,6 +2045,9 @@ body.live-output-page {
   background: #000;
   overflow: hidden;
   height: 100%;
+  cursor: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #root.live-output-root {
@@ -2178,6 +2181,9 @@ body.live-preview-page #root {
   pointer-events: auto;
   background: #000;
   display: flex;
+  cursor: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .live-stage-output {
@@ -2378,6 +2384,7 @@ button.linkish {
   background: #000;
   color: #fff;
   overflow: hidden;
+  cursor: none;
 }
 
 .live-output__chrome {
@@ -2393,6 +2400,7 @@ button.linkish {
   padding: 0.55rem 0.75rem;
   background: rgba(0, 0, 0, 0.72);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: default;
 }
 
 .live-output__chrome-status {

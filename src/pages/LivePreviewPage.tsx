@@ -3,6 +3,7 @@ import { LiveCardStage } from "../components/LiveCardStage";
 import { LivePreviewQuickSearch } from "../components/LivePreviewQuickSearch";
 import { LiveStageOutput } from "../components/LiveStageOutput";
 import { findPage, useLiveWorkspace } from "../hooks/useLiveWorkspace";
+import { useCaptureWakeLock } from "../hooks/useCaptureWakeLock";
 import {
   LIVE_OUTPUT_PATH,
   setLiveOutputPageId,
@@ -33,6 +34,7 @@ export default function LivePreviewPage() {
     "off",
   );
   const [outputHint, setOutputHint] = useState<string | null>(null);
+  useCaptureWakeLock(outputMode !== "off");
 
   useEffect(() => {
     document.body.classList.add("live-preview-page");
@@ -304,9 +306,10 @@ export default function LivePreviewPage() {
           </button>
         </div>
         <p className="live-preview__output-bar-hint muted">
-          Same idea as OpenLP / ProPresenter: this page stays on your laptop.
-          Start output sends a black stage to the projector. Present / Clear
-          only change what that stage shows.
+          For ATEM: extend this PC to the HDMI that feeds the switcher, set that
+          display to 1920×1080 at 100% scaling, then Start output. The stage
+          fills the frame (no letterbox) and stays black until Present — ready
+          for auto mask. Do not move the mouse onto that screen while live.
         </p>
         {outputHint ? (
           <p className="live-preview__output-bar-status">{outputHint}</p>

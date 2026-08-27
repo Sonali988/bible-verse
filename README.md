@@ -104,6 +104,8 @@ Works like OpenLP / ProPresenter: the laptop stays on **Live present** (`/live`)
 
 **Start output** uses the chosen display when the browser supports it. **Open output window** (`/live/output`) is the fallback: drag that window onto the projector and press `F` / double-click for fullscreen. The output stage never shows operator chrome — only the presented card, or black.
 
+**ATEM / auto mask:** feed that extended display into the switcher over HDMI (Windows **Extend**, display **1920×1080** at **100%** scaling). The stage fills the frame with no letterbox and stays true black until you Present, so luma/auto masks stay stable. Keep the mouse on the operator screen while live (press `H` on the output window only if you need its hidden controls).
+
 ## Highlights
 
 Select a page in the queue, then in each language box **select text** in the read-only textarea and **release the mouse** to add a highlight range. Remove ranges from the list as needed.

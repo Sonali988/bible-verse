@@ -43,7 +43,8 @@ export function LiveStageOutput({
     return () => ro.disconnect();
   }, []);
 
-  const scale = Math.min(box.w / layout.width, box.h / layout.height);
+  const scaleX = box.w / layout.width;
+  const scaleY = box.h / layout.height;
 
   return (
     <div
@@ -59,7 +60,8 @@ export function LiveStageOutput({
           versionLabelEn={versionLabelEn}
           versionLabelHi={versionLabelHi}
           verseBlockOrder={verseBlockOrder}
-          scale={scale}
+          scale={scaleX}
+          scaleY={scaleY}
         />
       ) : null}
     </div>

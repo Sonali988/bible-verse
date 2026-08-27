@@ -16,8 +16,10 @@ type Props = {
   versionLabelEn: string;
   versionLabelHi: string;
   verseBlockOrder: VerseBlockOrder;
-  /** Scale of the card inside its box (1 = native pixels). */
+  /** Horizontal scale of the card inside its box (1 = native pixels). */
   scale: number;
+  /** Vertical scale; defaults to `scale` (uniform). */
+  scaleY?: number;
   className?: string;
   style?: CSSProperties;
 };
@@ -32,12 +34,13 @@ export function LiveCardStage({
   versionLabelHi,
   verseBlockOrder,
   scale,
+  scaleY = scale,
   className,
   style,
 }: Props) {
   const effective = mergePageTypography(typography, page, "typographySizes");
   const scaledW = Math.max(1, Math.round(layout.width * scale));
-  const scaledH = Math.max(1, Math.round(layout.height * scale));
+  const scaledH = Math.max(1, Math.round(layout.height * scaleY));
 
   return (
     <div
@@ -54,7 +57,7 @@ export function LiveCardStage({
         style={{
           width: layout.width,
           height: layout.height,
-          transform: `scale(${scale})`,
+          transform: `scale(${scale}, ${scaleY})`,
           transformOrigin: "top left",
         }}
       >
