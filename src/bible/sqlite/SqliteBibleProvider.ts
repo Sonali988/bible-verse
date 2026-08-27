@@ -1,6 +1,6 @@
 import type { Database } from "sql.js";
 import type { VerseRef } from "../types";
-import type { BookInfo, BibleProvider } from "../provider";
+import type { BookInfo, BibleProvider, VerseSearchHit } from "../provider";
 import { bookNameById } from "../books";
 import {
   buildBookIdMaps,
@@ -213,6 +213,45 @@ export class SqliteBibleProvider implements BibleProvider {
     stmt.free();
     return text;
   }
+
+  async searchEnglish(query: string, limit = 40): Promise<VerseSearchHit[]> {
+    const q = query.trim();
+    if (!q) return [];
+    const db = this.getDb();
+    const s = this.schema;
+    const capped = Math.min(100, Math.max(1, Math.floor(limit)));
+    const like = `%${escapeLike(q)}%`;
+    const sql = `
+      SELECT ${quoteIdent(s.bookColumn)}, ${quoteIdent(s.chapterColumn)}, ${quoteIdent(s.verseColumn)}, ${quoteIdent(s.textColumn)}
+      FROM ${quoteIdent(s.verseTable)}
+      WHERE ${quoteIdent(s.textColumn)} LIKE ? ESCAPE '\\'
+      ORDER BY ${quoteIdent(s.bookColumn)}, ${quoteIdent(s.chapterColumn)}, ${quoteIdent(s.verseColumn)}
+      LIMIT ${capped}
+    `;
+    const stmt = db.prepare(sql);
+    stmt.bind([like]);
+    const hits: VerseSearchHit[] = [];
+    while (stmt.step()) {
+      const row = stmt.get();
+      const sqliteBookId = String(row[0]);
+      const bookId =
+        this.bookIdMaps.sqliteToCanonical.get(sqliteBookId) ?? sqliteBookId;
+      hits.push({
+        ref: {
+          bookId,
+          chapter: Number(row[1]),
+          verse: Number(row[2]),
+        },
+        textEn: String(row[3] ?? "").trim(),
+      });
+    }
+    stmt.free();
+    return hits;
+  }
+}
+
+function escapeLike(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
 function quoteIdent(name: string): string {

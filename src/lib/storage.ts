@@ -48,6 +48,7 @@ const K_HINDI_SOURCE = "bvc:hindiSourceId";
 const K_ENGLISH_SQLITE_VERSION = "bvc:englishSqliteVersionId";
 const K_BG_DATA_URL = "bvc:bgDataUrl";
 const K_BACKGROUNDS = "bvc:backgrounds";
+const K_LIVE_OUTPUT_PAGE_ID = "bvc:liveOutputPageId";
 
 export type { BackgroundSlots };
 export {
@@ -67,6 +68,8 @@ export type PersistedState = {
   hindiSourceId: HindiSourceId;
   englishSqliteVersionId: EnglishSqliteVersionId;
   backgrounds: BackgroundSlots;
+  /** Page id currently sent to the Live output / extended monitor. */
+  liveOutputPageId: string | null;
 };
 
 function isValidLayout(value: unknown): value is LayoutSpec {
@@ -81,6 +84,14 @@ function isValidLayout(value: unknown): value is LayoutSpec {
   return true;
 }
 
+function normalizeLiveOutputPageId(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 /** Normalize raw JSON (localStorage or KV) into app state fields. */
 export function normalizePersisted(raw: {
   pages?: unknown;
@@ -92,6 +103,7 @@ export function normalizePersisted(raw: {
   hindiSourceId?: unknown;
   englishSqliteVersionId?: unknown;
   backgrounds?: unknown;
+  liveOutputPageId?: unknown;
 }): Partial<PersistedState> {
   const pagesRaw = raw.pages as VersePage[] | null | undefined;
   const englishSqliteVersionId =
@@ -136,6 +148,7 @@ export function normalizePersisted(raw: {
       ? normalizeVerseBlockOrder(raw.verseBlockOrder)
       : undefined;
   const backgrounds = normalizeBackgroundSlots(raw.backgrounds);
+  const liveOutputPageId = normalizeLiveOutputPageId(raw.liveOutputPageId);
   return {
     pages: pages ?? undefined,
     cardLayout,
@@ -146,6 +159,7 @@ export function normalizePersisted(raw: {
     hindiSourceId,
     englishSqliteVersionId,
     backgrounds,
+    liveOutputPageId,
   };
 }
 
@@ -263,6 +277,7 @@ export function loadPersisted(): Partial<PersistedState> {
     ) as TypographySpec | null;
     const verseBlockOrderRaw = localStorage.getItem(K_VERSE_BLOCK_ORDER);
     const hindiSourceRaw = localStorage.getItem(K_HINDI_SOURCE);
+    const liveOutputPageIdRaw = localStorage.getItem(K_LIVE_OUTPUT_PAGE_ID);
     const meta = loadBackgroundSlotsMeta();
 
     return normalizePersisted({
@@ -278,6 +293,7 @@ export function loadPersisted(): Partial<PersistedState> {
           : undefined,
       hindiSourceId: hindiSourceRaw,
       backgrounds: normalizeBackgroundSlots({ selectedIndex: meta.selectedIndex }),
+      liveOutputPageId: liveOutputPageIdRaw,
     });
   } catch {
     return {};
@@ -296,6 +312,11 @@ export function savePersistedLocal(state: PersistedState): void {
     K_ENGLISH_SQLITE_VERSION,
     state.englishSqliteVersionId,
   );
+  if (state.liveOutputPageId) {
+    localStorage.setItem(K_LIVE_OUTPUT_PAGE_ID, state.liveOutputPageId);
+  } else {
+    localStorage.removeItem(K_LIVE_OUTPUT_PAGE_ID);
+  }
   saveBackgroundSlotsMeta(state.backgrounds.selectedIndex);
 }
 
