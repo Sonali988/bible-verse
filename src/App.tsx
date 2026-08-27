@@ -17,6 +17,10 @@ import { useCardExport } from "./hooks/useCardExport";
 import { usePageQueue } from "./hooks/usePageQueue";
 import { hindiSourceUsesSqlite } from "./config/hindiSources";
 import {
+  loadLiveOutputPageId,
+  subscribeLivePresent,
+} from "./lib/livePresent";
+import {
   defaultBackgroundSlots,
   selectedBackgroundUrl,
   type BackgroundSlots,
@@ -39,12 +43,21 @@ export default function App({
   const [backgrounds, setBackgrounds] = useState<BackgroundSlots>(
     () => persisted.backgrounds ?? defaultBackgroundSlots(),
   );
+  const [liveOutputPageId, setLiveOutputPageId] = useState<string | null>(
+    () => persisted.liveOutputPageId ?? loadLiveOutputPageId(),
+  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editRailOpen, setEditRailOpen] = useState(false);
   const [workflowVariant, setWorkflowVariant] = useState<ExportVariant>("live");
 
   const bible = useBibleSources(persisted);
   const design = useCardDesign(persisted);
+
+  useEffect(() => {
+    return subscribeLivePresent((msg) => {
+      if (msg.type === "present") setLiveOutputPageId(msg.pageId);
+    });
+  }, []);
 
   const queue = usePageQueue(
     persisted.pages,
@@ -72,8 +85,9 @@ export default function App({
       hindiSourceId: bible.hindiSourceId,
       englishSqliteVersionId: bible.englishVersionId,
       backgrounds,
+      liveOutputPageId,
     }),
-    [queue.pages, design.cardLayout, design.typography, design.resolumeLayout, design.resolumeTypography, design.verseBlockOrder, bible.hindiSourceId, bible.englishVersionId, backgrounds],
+    [queue.pages, design.cardLayout, design.typography, design.resolumeLayout, design.resolumeTypography, design.verseBlockOrder, bible.hindiSourceId, bible.englishVersionId, backgrounds, liveOutputPageId],
   );
 
   const { sharedSaveState, bgSaveWarning, setBgSaveWarning } = useAppPersistence(

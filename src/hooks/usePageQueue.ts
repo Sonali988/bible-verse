@@ -47,36 +47,44 @@ export function usePageQueue(
     setDraft(items.length > 0 ? items : null);
   }, []);
 
+  const addDraftItems = useCallback(
+    async (items: VerseDraftItem[]) => {
+      if (!items.length) return;
+      await document.fonts.ready;
+      const newPages: VersePage[] = items.map((item) => ({
+        id: newId(),
+        ref: item.ref,
+        textEn: item.textEn,
+        textHi: item.textHi,
+        versionLabelEn: providerEn.versionLabel,
+        versionLabelHi: providerHi.versionLabel,
+        highlightsEn: [],
+        highlightsHi: [],
+        typographySizes: computeAutoFitBodyFontOverrides(
+          item,
+          design.cardLayout,
+          design.typography,
+          design.verseBlockOrder,
+        ),
+        resolumeTypographySizes: computeAutoFitBodyFontOverrides(
+          item,
+          design.resolumeLayout,
+          design.resolumeTypography,
+          design.verseBlockOrder,
+          "resolume",
+        ),
+      }));
+      setPages((p) => [...p, ...newPages]);
+      selectPage(newPages[0]!.id, "both");
+      setDraft(null);
+    },
+    [providerEn.versionLabel, providerHi.versionLabel, design, selectPage],
+  );
+
   const addPage = useCallback(async () => {
     if (!draft?.length) return;
-    await document.fonts.ready;
-    const newPages: VersePage[] = draft.map((item) => ({
-      id: newId(),
-      ref: item.ref,
-      textEn: item.textEn,
-      textHi: item.textHi,
-      versionLabelEn: providerEn.versionLabel,
-      versionLabelHi: providerHi.versionLabel,
-      highlightsEn: [],
-      highlightsHi: [],
-      typographySizes: computeAutoFitBodyFontOverrides(
-        item,
-        design.cardLayout,
-        design.typography,
-        design.verseBlockOrder,
-      ),
-      resolumeTypographySizes: computeAutoFitBodyFontOverrides(
-        item,
-        design.resolumeLayout,
-        design.resolumeTypography,
-        design.verseBlockOrder,
-        "resolume",
-      ),
-    }));
-    setPages((p) => [...p, ...newPages]);
-    selectPage(newPages[0]!.id, "both");
-    setDraft(null);
-  }, [draft, providerEn.versionLabel, providerHi.versionLabel, design, selectPage]);
+    await addDraftItems(draft);
+  }, [draft, addDraftItems]);
 
   const updateSelectedHighlights = useCallback(
     (lang: "en" | "hi", ranges: VersePage["highlightsEn"]) => {
@@ -177,6 +185,7 @@ export function usePageQueue(
     selectPage,
     onPreview,
     addPage,
+    addDraftItems,
     updateSelectedHighlights,
     updateSelectedText,
     updateSelectedTitles,
