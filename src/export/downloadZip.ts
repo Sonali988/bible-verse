@@ -11,7 +11,7 @@ export async function zipBlobs(
       files[e.name] = new Uint8Array(await e.blob.arrayBuffer());
     }),
   );
-  const out = zipSync(files);
+  const out = zipSync(files, { level: 9 });
   saveAs(new Blob([out], { type: "application/zip" }), zipName);
 }
 

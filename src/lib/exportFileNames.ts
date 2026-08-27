@@ -39,11 +39,13 @@ export function exportPngFileName(
   fallbackEnglishLabel: string,
   fallbackHindiLabel: string,
   verseBlockOrder: VerseBlockOrder,
+  includeVariant = true,
 ): string {
   const englishLabel = page.versionLabelEn ?? fallbackEnglishLabel;
   const hindiLabel = page.versionLabelHi ?? fallbackHindiLabel;
   const versions = versionFileSuffix(englishLabel, hindiLabel, verseBlockOrder);
-  return `${sanitizeFileName(formatReference(page.ref))}-${versions}-${variant}.png`;
+  const stem = `${sanitizeFileName(formatReference(page.ref))}-${versions}`;
+  return includeVariant ? `${stem}-${variant}.png` : `${stem}.png`;
 }
 
 /** Ensure unique names within one export batch (ZIP or multi-download). */
@@ -53,6 +55,7 @@ export function uniqueExportPngFileNames(
   fallbackEnglishLabel: string,
   fallbackHindiLabel: string,
   verseBlockOrder: VerseBlockOrder,
+  includeVariant = true,
 ): string[] {
   const seen = new Map<string, number>();
   return pages.map((page) => {
@@ -62,11 +65,18 @@ export function uniqueExportPngFileNames(
       fallbackEnglishLabel,
       fallbackHindiLabel,
       verseBlockOrder,
+      includeVariant,
     );
     const count = seen.get(base) ?? 0;
     seen.set(base, count + 1);
     if (count === 0) return base;
     const stem = base.slice(0, -".png".length);
+    if (includeVariant) {
+      const suffix = `-${variant}`;
+      if (stem.endsWith(suffix)) {
+        return `${stem.slice(0, -suffix.length)}_${count + 1}${suffix}.png`;
+      }
+    }
     return `${stem}_${count + 1}.png`;
   });
 }
