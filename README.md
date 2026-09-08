@@ -102,9 +102,7 @@ Works like OpenLP / ProPresenter: the laptop stays on **Live present** (`/live`)
 3. Chrome or Edge will ask for window-placement permission — allow it so the stage can go fullscreen on that screen.
 4. Check the verse in **Preview**, then press **Present**. **Clear output** blacks the projector without closing the stage.
 
-**Start output** uses the chosen display when the browser supports it. **Open output window** (`/live/output`) is the fallback: drag that window onto the projector and press `F` / double-click for fullscreen. The output stage never shows operator chrome — only the presented card, or black.
-
-**ATEM / auto mask:** feed that extended display into the switcher over HDMI (Windows **Extend**, display **1920×1080** at **100%** scaling). The stage fills the frame with no letterbox and stays true black until you Present, so luma/auto masks stay stable. Keep the mouse on the operator screen while live (press `H` on the output window only if you need its hidden controls).
+**Start ATEM output** opens a dedicated output window on the extended HDMI display (the one ATEM captures). The editor stays on the laptop. Allow pop-ups and Chrome’s window-management permission when asked. Then **Present** from Live present.
 
 ## Highlights
 

@@ -1,6 +1,7 @@
 import { formatReference } from "../lib/referenceParser";
 import type { VersePage } from "../bible/types";
 import { LIVE_PREVIEW_PATH } from "../lib/livePresent";
+import { startAtemOutput } from "../lib/outputDisplay";
 import { navigate } from "../lib/pathRouter";
 
 type Props = {
@@ -103,6 +104,17 @@ export function AppHeader({
               onClick={() => navigate(LIVE_PREVIEW_PATH)}
             >
               Live present
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              onClick={() => {
+                void startAtemOutput().then((result) => {
+                  if (result.ok) navigate(LIVE_PREVIEW_PATH);
+                });
+              }}
+            >
+              Start ATEM output
             </button>
             <span className="chip">
               Currently selected {providerEnLabel} + {providerHiLabel}

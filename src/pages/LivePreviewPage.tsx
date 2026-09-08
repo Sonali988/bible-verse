@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { LiveCardStage } from "../components/LiveCardStage";
 import { LivePreviewQuickSearch } from "../components/LivePreviewQuickSearch";
-import { LiveStageOutput } from "../components/LiveStageOutput";
 import { findPage, useLiveWorkspace } from "../hooks/useLiveWorkspace";
 import { useCaptureWakeLock } from "../hooks/useCaptureWakeLock";
 import {
@@ -11,12 +10,12 @@ import {
 import { navigate } from "../lib/pathRouter";
 import { formatReference } from "../lib/referenceParser";
 import {
+  closeLiveOutputWindow,
   listOutputScreens,
   loadPreferredOutputLabel,
-  openLiveOutputWindow,
   pickDefaultOutputScreen,
   savePreferredOutputLabel,
-  startStageOutput,
+  startAtemOutput,
   windowManagementSupported,
   type OutputScreenChoice,
 } from "../lib/outputDisplay";
@@ -27,12 +26,9 @@ export default function LivePreviewPage() {
   });
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const stageRef = useRef<HTMLDivElement>(null);
   const [screens, setScreens] = useState<OutputScreenChoice[] | null>(null);
   const [selectedScreenId, setSelectedScreenId] = useState<string | null>(null);
-  const [outputMode, setOutputMode] = useState<"off" | "fullscreen" | "window">(
-    "off",
-  );
+  const [outputMode, setOutputMode] = useState<"off" | "window">("off");
   const [outputHint, setOutputHint] = useState<string | null>(null);
   useCaptureWakeLock(outputMode !== "off");
 
@@ -43,16 +39,6 @@ export default function LivePreviewPage() {
       document.body.classList.remove("live-preview-page");
       document.documentElement.classList.remove("live-preview-page");
     };
-  }, []);
-
-  useEffect(() => {
-    const onFs = () => {
-      if (!document.fullscreenElement) {
-        setOutputMode((mode) => (mode === "fullscreen" ? "off" : mode));
-      }
-    };
-    document.addEventListener("fullscreenchange", onFs);
-    return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
   const refreshScreens = useCallback(async () => {
@@ -90,11 +76,6 @@ export default function LivePreviewPage() {
   const livePage = snapshot
     ? findPage(snapshot.pages, snapshot.liveOutputPageId)
     : null;
-
-  const selectedScreen = useMemo(
-    () => screens?.find((s) => s.id === selectedScreenId) ?? null,
-    [screens, selectedScreenId],
-  );
 
   const [viewportW, setViewportW] = useState(
     () => (typeof window !== "undefined" ? window.innerWidth : 1200),
@@ -135,69 +116,29 @@ export default function LivePreviewPage() {
 
   const onStartOutput = async () => {
     setOutputHint(null);
-    let list = screens;
-    if (windowManagementSupported() && (!list || list.length === 0)) {
-      list = await listOutputScreens();
-      setScreens(list);
+    const result = await startAtemOutput(selectedScreenId);
+    if (result.screens.length) {
+      setScreens(result.screens);
+      if (result.screen) setSelectedScreenId(result.screen.id);
     }
-    const preferred = loadPreferredOutputLabel();
-    const screen =
-      (list && selectedScreenId
-        ? list.find((s) => s.id === selectedScreenId)
-        : null) ??
-      (list ? pickDefaultOutputScreen(list, preferred) : null);
-    if (screen) {
-      setSelectedScreenId(screen.id);
-      savePreferredOutputLabel(screen.label);
-    }
-
-    const el = stageRef.current;
-    if (el && screen) {
-      const result = await startStageOutput(el, screen);
-      if (result === "failed") {
-        setOutputHint(
-          "Could not open the output display. Allow window placement in the browser, or open the output window and drag it to the projector.",
-        );
-        return;
-      }
-      setOutputMode(result);
-      if (result === "window") {
-        setOutputHint(
-          "Output window opened on the selected display. Double-click it or press F for true fullscreen.",
-        );
-      }
-      return;
-    }
-
-    const win = openLiveOutputWindow(screen);
-    if (!win) {
-      setOutputHint(
-        "The browser blocked the output window. Allow pop-ups, then try again.",
-      );
+    if (!result.ok) {
+      setOutputHint(result.error ?? "Could not open the ATEM output window.");
       return;
     }
     setOutputMode("window");
     setOutputHint(
-      windowManagementSupported()
-        ? "Drag the output window onto the projector if it did not land there, then press F."
-        : "Use Chrome or Edge to auto-place on the extended display. Drag this window to the projector, then press F.",
+      result.error ??
+        `Output is on ${result.screen?.label ?? "the extended display"}. ATEM should now see that HDMI. Present a verse here.`,
     );
   };
 
-  const onStopOutput = async () => {
-    if (document.fullscreenElement) {
-      try {
-        await document.exitFullscreen();
-      } catch {
-        /* ignore */
-      }
-    }
+  const onStopOutput = () => {
+    closeLiveOutputWindow();
     setOutputMode("off");
   };
 
   const onOpenOutputWindow = () => {
-    openLiveOutputWindow(selectedScreen);
-    setOutputMode("window");
+    void onStartOutput();
   };
 
   if (error && !snapshot) {
@@ -286,13 +227,13 @@ export default function LivePreviewPage() {
               className="btn btn--primary"
               onClick={() => void onStartOutput()}
             >
-              Start output
+              Start ATEM output
             </button>
           ) : (
             <button
               type="button"
               className="btn"
-              onClick={() => void onStopOutput()}
+              onClick={onStopOutput}
             >
               Stop output
             </button>
@@ -306,10 +247,10 @@ export default function LivePreviewPage() {
           </button>
         </div>
         <p className="live-preview__output-bar-hint muted">
-          For ATEM: extend this PC to the HDMI that feeds the switcher, set that
-          display to 1920×1080 at 100% scaling, then Start output. The stage
-          fills the frame (no letterbox) and stays black until Present — ready
-          for auto mask. Do not move the mouse onto that screen while live.
+          This does not send the editor page to ATEM. Click{" "}
+          <strong>Start ATEM output</strong> so a second window opens on the
+          HDMI display (same as OpenLP / ProPresenter). Allow pop-ups and
+          “Window management” in Chrome/Edge. Then Present from this laptop.
         </p>
         {outputHint ? (
           <p className="live-preview__output-bar-status">{outputHint}</p>
@@ -443,18 +384,6 @@ export default function LivePreviewPage() {
             )}
           </div>
         </section>
-      </div>
-
-      <div ref={stageRef} className="live-preview__projector">
-        <LiveStageOutput
-          page={livePage}
-          layout={snapshot.cardLayout}
-          typography={snapshot.typography}
-          backgroundDataUrl={backgroundUrl}
-          versionLabelEn={snapshot.englishLabel}
-          versionLabelHi={snapshot.hindiLabel}
-          verseBlockOrder={snapshot.verseBlockOrder}
-        />
       </div>
     </div>
   );
