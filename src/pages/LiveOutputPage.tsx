@@ -3,6 +3,7 @@ import { LiveStageOutput } from "../components/LiveStageOutput";
 import { findPage, useLiveWorkspace } from "../hooks/useLiveWorkspace";
 import { useCaptureWakeLock } from "../hooks/useCaptureWakeLock";
 import { LIVE_PREVIEW_PATH } from "../lib/livePresent";
+import { lockThisWindowToAtemDisplay } from "../lib/outputDisplay";
 import { navigate } from "../lib/pathRouter";
 import { formatReference } from "../lib/referenceParser";
 
@@ -13,6 +14,10 @@ export default function LiveOutputPage() {
   const [chromeVisible, setChromeVisible] = useState(false);
 
   useCaptureWakeLock();
+
+  useEffect(() => {
+    void lockThisWindowToAtemDisplay();
+  }, []);
 
   useEffect(() => {
     document.title = "Live Output";
