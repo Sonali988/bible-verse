@@ -2161,31 +2161,6 @@ body.live-preview-page #root {
   font-size: 0.85rem;
 }
 
-.live-preview__projector {
-  position: fixed;
-  width: 2px;
-  height: 2px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  pointer-events: none;
-}
-
-.live-preview__projector:fullscreen,
-.live-preview__projector:-webkit-full-screen {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  clip: auto;
-  overflow: hidden;
-  pointer-events: auto;
-  background: #000;
-  display: flex;
-  cursor: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
 .live-stage-output {
   width: 100%;
   height: 100%;
@@ -2355,11 +2330,6 @@ body.live-preview-page #root {
 
 .live-preview__status a {
   color: var(--accent-light);
-}
-
-.live-preview__footnote {
-  margin: 0;
-  font-size: 0.85rem;
 }
 
 .live-preview__error {

@@ -239,24 +239,6 @@ export function loadBackgroundDataUrl(): string | null {
   }
 }
 
-/** @deprecated Backgrounds are stored in `PersistedState.backgrounds`. */
-export function saveBackgroundDataUrl(url: string | null): boolean {
-  try {
-    if (!url?.trim()) {
-      localStorage.removeItem(K_BG_DATA_URL);
-      return true;
-    }
-    localStorage.setItem(K_BG_DATA_URL, url);
-    return true;
-  } catch (e) {
-    console.warn(
-      "Could not save background image to browser storage (file may be too large).",
-      e,
-    );
-    return false;
-  }
-}
-
 export function loadPersisted(): Partial<PersistedState> {
   try {
     const pagesRaw = JSON.parse(

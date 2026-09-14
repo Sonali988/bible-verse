@@ -49,10 +49,6 @@ interface Window {
   getScreenDetails?: () => Promise<ScreenDetails>;
 }
 
-interface PermissionDescriptor {
-  name: PermissionName | "window-management";
-}
-
 interface FullscreenOptions {
   screen?: ScreenDetailed;
 }

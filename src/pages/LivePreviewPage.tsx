@@ -11,8 +11,8 @@ import { navigate } from "../lib/pathRouter";
 import { formatReference } from "../lib/referenceParser";
 import {
   closeLiveOutputWindow,
-  listOutputScreens,
   loadPreferredOutputLabel,
+  refreshScreenDetails,
   pickDefaultOutputScreen,
   savePreferredOutputLabel,
   startAtemOutput,
@@ -42,7 +42,7 @@ export default function LivePreviewPage() {
   }, []);
 
   const refreshScreens = useCallback(async () => {
-    const list = await listOutputScreens();
+    const list = await refreshScreenDetails();
     setScreens(list);
     if (!list?.length) return;
     const preferred = loadPreferredOutputLabel();
@@ -137,10 +137,6 @@ export default function LivePreviewPage() {
     setOutputMode("off");
   };
 
-  const onOpenOutputWindow = () => {
-    void onStartOutput();
-  };
-
   if (error && !snapshot) {
     return (
       <div className="live-preview">
@@ -206,7 +202,7 @@ export default function LivePreviewPage() {
               {!screens?.length ? (
                 <option value="">
                   {windowManagementSupported()
-                    ? "Click Start output to pick a display"
+                    ? "Click Start ATEM output to pick a display"
                     : "Extended display (use Chrome/Edge to list screens)"}
                 </option>
               ) : (
@@ -238,13 +234,6 @@ export default function LivePreviewPage() {
               Stop output
             </button>
           )}
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={onOpenOutputWindow}
-          >
-            Open output window
-          </button>
         </div>
         <p className="live-preview__output-bar-hint muted">
           This does not send the editor page to ATEM. Click{" "}

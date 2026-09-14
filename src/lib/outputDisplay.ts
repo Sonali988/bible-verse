@@ -78,10 +78,6 @@ export async function refreshScreenDetails(): Promise<OutputScreenChoice[] | nul
   }
 }
 
-export async function listOutputScreens(): Promise<OutputScreenChoice[] | null> {
-  return refreshScreenDetails();
-}
-
 export function pickDefaultOutputScreen(
   screens: OutputScreenChoice[],
   preferredLabel: string | null,
@@ -339,8 +335,4 @@ export async function lockThisWindowToAtemDisplay(): Promise<void> {
       /* ignore */
     }
   }
-}
-
-export function openLiveOutputWindow(screen?: OutputScreenChoice | null): Window | null {
-  return placeLiveOutputWindow(screen ?? guessExtendedScreen());
 }

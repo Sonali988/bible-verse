@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 /** Normalize pathname (no trailing slash except root). */
 export function normalizePath(pathname: string): string {
@@ -29,10 +29,4 @@ export function usePathname(): string {
     return () => window.removeEventListener("popstate", sync);
   }, []);
   return path;
-}
-
-export function useNavigate() {
-  return useCallback((to: string, opts?: { replace?: boolean }) => {
-    navigate(to, opts);
-  }, []);
 }

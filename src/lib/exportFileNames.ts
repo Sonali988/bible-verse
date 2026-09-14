@@ -22,9 +22,6 @@ export function versionFileSuffix(
   return verseBlockOrder === "en-first" ? `${en}-${hi}` : `${hi}-${en}`;
 }
 
-/** @deprecated Use {@link versionFileSuffix} — versions are now at the end of the name. */
-export const versionFilePrefix = versionFileSuffix;
-
 export function datedZipFileName(suffix: string): string {
   const d = new Date();
   const yyyy = d.getFullYear();
