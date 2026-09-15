@@ -6,6 +6,7 @@ export type EnglishSqliteVersionId =
   | "niv"
   | "nlt"
   | "ampc"
+  | "msg"
   | "tpt"
   | "asv"
   | "cpdv"
@@ -43,7 +44,8 @@ export const ENGLISH_SQLITE_VERSIONS: readonly EnglishSqliteVersion[] = [
   { id: "niv", label: "NIV", bundledFile: "niv.sqlite" },
   { id: "nlt", label: "NLT", bundledFile: "nlt.sqlite" },
   { id: "ampc", label: "AMPC", bundledFile: "ampc.sqlite" },
-  { id: "tpt", label: "TPT", youVersionBibleId: 1849 },
+  { id: "msg", label: "MSG", bundledFile: "msg.sqlite" },
+  { id: "tpt", label: "TPT", bundledFile: "tpt.sqlite", youVersionBibleId: 1849 },
   { id: "asv", label: "ASV", youVersionBibleId: 12 },
   { id: "cpdv", label: "CPDV", youVersionBibleId: 42 },
   { id: "nasb1995", label: "NASB1995", youVersionBibleId: 100 },
@@ -112,6 +114,8 @@ function envOverride(id: EnglishSqliteVersionId): string | undefined {
       return env.VITE_BUNDLED_EN_NLT_SQLITE_URL;
     case "ampc":
       return env.VITE_BUNDLED_EN_AMPC_SQLITE_URL;
+    case "msg":
+      return env.VITE_BUNDLED_EN_MSG_SQLITE_URL;
     case "tpt":
       return env.VITE_BUNDLED_EN_TPT_SQLITE_URL;
     default:
