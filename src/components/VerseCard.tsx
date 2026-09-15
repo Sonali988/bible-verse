@@ -255,6 +255,8 @@ export function VerseCard({
                   ...sectionBox(rect),
                   ...verseBodyEdgePadding(typography.bodyFontPxEn, "en"),
                   display: "block",
+                  overflow: "clip",
+                  overflowClipMargin: "0.28em",
                   fontFamily: typography.fontFamilyEn,
                   fontSize: typography.bodyFontPxEn,
                   lineHeight: typography.lineHeightEn,

@@ -22,12 +22,23 @@ export function verseBodyEdgePadding(
   fontSizePx: number,
   script: "hi" | "en",
 ): Pick<CSSProperties, "paddingTop" | "paddingBottom" | "paddingLeft" | "paddingRight"> {
-  const vFactor = script === "hi" ? 0.22 : 0.18;
-  const v = Math.max(4, Math.round(fontSizePx * vFactor));
   const h = Math.max(2, Math.round(fontSizePx * 0.04));
+  if (script === "hi") {
+    const v = Math.max(4, Math.round(fontSizePx * 0.22));
+    return {
+      paddingTop: v,
+      paddingBottom: v,
+      paddingLeft: h,
+      paddingRight: h,
+    };
+  }
+  const top = Math.max(4, Math.round(fontSizePx * 0.14));
+  // Latin descenders (g, y, p, j, q) paint below the CSS line box; extra bottom
+  // inset keeps the last wrapped line from being clipped by overflow:hidden.
+  const bottom = Math.max(12, Math.round(fontSizePx * 0.36));
   return {
-    paddingTop: v,
-    paddingBottom: v,
+    paddingTop: top,
+    paddingBottom: bottom,
     paddingLeft: h,
     paddingRight: h,
   };

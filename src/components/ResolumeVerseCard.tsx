@@ -229,6 +229,8 @@ export function ResolumeVerseCard({
           style={{
             ...absoluteTextBox(enBodyRect),
             ...verseBodyEdgePadding(typography.bodyFontPxEn, "en"),
+            overflow: "clip",
+            overflowClipMargin: "0.28em",
             fontFamily: typography.fontFamilyEn,
             fontSize: typography.bodyFontPxEn,
             lineHeight: typography.lineHeightEn,

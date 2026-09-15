@@ -25,6 +25,27 @@ export const YOUVERSION_HSB: YouVersionBibleConfig = {
   label: "HSB",
 };
 
+/** Hindi Contemporary Version (HCV) — YouVersion Platform bible id 1628. */
+export const YOUVERSION_HCV: YouVersionBibleConfig = {
+  bibleId: 1628,
+  abbreviation: "HCV",
+  label: "HCV",
+};
+
+/** Indian Revised Version Hindi 2019 (IRVHin) — YouVersion Platform bible id 1980. */
+export const YOUVERSION_IRVHIN: YouVersionBibleConfig = {
+  bibleId: 1980,
+  abbreviation: "IRVHin",
+  label: "IRVHin",
+};
+
+/** Hindi Literal Text (HLT) — YouVersion Platform bible id 4459. */
+export const YOUVERSION_HLT: YouVersionBibleConfig = {
+  bibleId: 4459,
+  abbreviation: "HLT",
+  label: "HLT",
+};
+
 export function youVersionAppKey(): string {
   const key = import.meta.env.VITE_YOUVERSION_APP_KEY?.trim();
   if (!key) {

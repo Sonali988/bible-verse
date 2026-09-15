@@ -1,4 +1,20 @@
-export type HindiSourceId = "sqlite" | "hhbd" | "hsb" | "biblecom";
+import {
+  YOUVERSION_HCV,
+  YOUVERSION_HHBD,
+  YOUVERSION_HLT,
+  YOUVERSION_HSB,
+  YOUVERSION_IRVHIN,
+  type YouVersionBibleConfig,
+} from "../bible/youversion/config";
+
+export type HindiSourceId =
+  | "sqlite"
+  | "hhbd"
+  | "hsb"
+  | "hcv"
+  | "irvhin"
+  | "hlt"
+  | "biblecom";
 
 export type HindiSource = {
   id: HindiSourceId;
@@ -10,8 +26,21 @@ export const HINDI_SOURCES: readonly HindiSource[] = [
   { id: "sqlite", label: "HINOVBSI", detail: "SQLite bundled" },
   { id: "hhbd", label: "HHBD", detail: "YouVersion API" },
   { id: "hsb", label: "HSB", detail: "YouVersion API" },
+  { id: "hcv", label: "HCV", detail: "YouVersion API" },
+  { id: "irvhin", label: "IRVHin", detail: "YouVersion API" },
+  { id: "hlt", label: "HLT", detail: "YouVersion API" },
   // { id: "biblecom", label: "HINOVBSI", detail: "Bible.com API" },
 ] as const;
+
+const YOUVERSION_BY_HINDI_ID: Partial<
+  Record<HindiSourceId, YouVersionBibleConfig>
+> = {
+  hhbd: YOUVERSION_HHBD,
+  hsb: YOUVERSION_HSB,
+  hcv: YOUVERSION_HCV,
+  irvhin: YOUVERSION_IRVHIN,
+  hlt: YOUVERSION_HLT,
+};
 
 export const DEFAULT_HINDI_SOURCE_ID: HindiSourceId = "sqlite";
 
@@ -35,7 +64,13 @@ export function hindiSourceLabel(id: HindiSourceId): string {
 }
 
 export function hindiSourceUsesYouVersion(id: HindiSourceId): boolean {
-  return id === "hhbd" || id === "hsb";
+  return youVersionConfigForHindiSource(id) != null;
+}
+
+export function youVersionConfigForHindiSource(
+  id: HindiSourceId,
+): YouVersionBibleConfig | undefined {
+  return YOUVERSION_BY_HINDI_ID[id];
 }
 
 export function hindiSourceUsesBibleCom(id: HindiSourceId): boolean {
