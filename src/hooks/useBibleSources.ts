@@ -9,7 +9,6 @@ import { EmptyBibleProvider } from "../bible/EmptyBibleProvider";
 import { BibleComProvider } from "../bible/bibleCom/BibleComProvider";
 import { BIBLE_COM_HI } from "../bible/bibleCom/config";
 import { YouVersionProvider } from "../bible/youversion/YouVersionProvider";
-import { YOUVERSION_TPT } from "../bible/youversion/config";
 import {
   BUNDLED_HI_SQLITE_URL,
   fetchSqliteArrayBuffer,
@@ -19,6 +18,7 @@ import {
   englishSqliteVersion,
   englishVersionUsesYouVersion,
   normalizeEnglishSqliteVersionId,
+  youVersionConfigForEnglish,
   type EnglishSqliteVersionId,
 } from "../config/englishSqliteVersions";
 import {
@@ -87,12 +87,13 @@ export function useBibleSources(persisted: PersistedSlice) {
   }, [enBundledLoading, hiBundledLoading, sqliteEnActive, sqliteHiActive]);
 
   useEffect(() => {
-    if (englishUsesYouVersion) {
+    const youVersionEn = youVersionConfigForEnglish(englishVersionId);
+    if (youVersionEn) {
       setProviderEn((prev) => {
         if (prev instanceof YouVersionProvider && prev.versionLabel === englishLabel) {
           return prev;
         }
-        return new YouVersionProvider(YOUVERSION_TPT);
+        return new YouVersionProvider(youVersionEn);
       });
     } else if (sqliteEnActive && sqliteEnProviderRef.current?.isReady()) {
       setProviderEn(sqliteEnProviderRef.current);
