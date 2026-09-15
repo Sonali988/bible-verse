@@ -63,11 +63,31 @@ function measureBox(): HTMLDivElement {
   return measureEl;
 }
 
-function verseBodyFitsBox(el: HTMLDivElement): boolean {
-  return (
-    el.scrollHeight <= el.clientHeight + 1 &&
-    el.scrollWidth <= el.clientWidth + 1
-  );
+function verseBodyFitsBox(
+  el: HTMLDivElement,
+  fontSizePx: number,
+  script: "hi" | "en",
+): boolean {
+  if (
+    el.scrollHeight > el.clientHeight + 1 ||
+    el.scrollWidth > el.clientWidth + 1
+  ) {
+    return false;
+  }
+  if (script !== "en" || !el.firstChild) return true;
+
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const rects = range.getClientRects();
+  if (rects.length === 0) return true;
+  let lastBottom = 0;
+  for (const rect of rects) {
+    if (rect.bottom > lastBottom) lastBottom = rect.bottom;
+  }
+  const box = el.getBoundingClientRect();
+  // Line boxes ignore glyph ink; keep room for descenders on the last line.
+  const descent = Math.ceil(fontSizePx * 0.22);
+  return lastBottom + descent <= box.bottom + 0.5;
 }
 
 function applyVerseBodyMeasureStyles(
@@ -117,7 +137,7 @@ export function fitVerseBodyFontPx(input: FitVerseBodyFontInput): number {
   while (hi - lo > 1) {
     const mid = Math.floor((lo + hi) / 2);
     applyVerseBodyMeasureStyles(el, input, mid);
-    if (verseBodyFitsBox(el)) lo = mid;
+    if (verseBodyFitsBox(el, mid, input.script)) lo = mid;
     else hi = mid;
   }
 

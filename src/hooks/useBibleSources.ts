@@ -9,7 +9,7 @@ import { EmptyBibleProvider } from "../bible/EmptyBibleProvider";
 import { BibleComProvider } from "../bible/bibleCom/BibleComProvider";
 import { BIBLE_COM_HI } from "../bible/bibleCom/config";
 import { YouVersionProvider } from "../bible/youversion/YouVersionProvider";
-import { YOUVERSION_HHBD, YOUVERSION_HSB, YOUVERSION_TPT } from "../bible/youversion/config";
+import { YOUVERSION_TPT } from "../bible/youversion/config";
 import {
   BUNDLED_HI_SQLITE_URL,
   fetchSqliteArrayBuffer,
@@ -25,8 +25,8 @@ import {
   hindiSourceLabel,
   hindiSourceUsesBibleCom,
   hindiSourceUsesSqlite,
-  hindiSourceUsesYouVersion,
   normalizeHindiSourceId,
+  youVersionConfigForHindiSource,
   type HindiSourceId,
 } from "../config/hindiSources";
 import type { PersistedState } from "../lib/storage";
@@ -106,9 +106,8 @@ export function useBibleSources(persisted: PersistedSlice) {
       });
     }
 
-    if (hindiSourceUsesYouVersion(hindiSourceId)) {
-      const youVersionHi =
-        hindiSourceId === "hsb" ? YOUVERSION_HSB : YOUVERSION_HHBD;
+    const youVersionHi = youVersionConfigForHindiSource(hindiSourceId);
+    if (youVersionHi) {
       setProviderHi((prev) => {
         if (
           prev instanceof YouVersionProvider &&
