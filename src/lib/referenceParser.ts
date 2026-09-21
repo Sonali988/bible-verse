@@ -1,4 +1,4 @@
-import { STANDARD_BOOKS, hindiBookNameById } from "../bible/books";
+import { STANDARD_BOOKS, bookAbbrevById, hindiBookNameById } from "../bible/books";
 import type { VerseRef } from "../bible/types";
 
 /** Migrates legacy `verseStart` / `verseEnd` persisted refs to a single verse. */
@@ -18,6 +18,11 @@ function bookDisplayName(bookId: string): string {
 
 export function formatReference(ref: VerseRef): string {
   return `${bookDisplayName(ref.bookId)} ${ref.chapter}:${ref.verse}`;
+}
+
+/** e.g. `Gen 1:1`, `1Cor 13:4`. */
+export function formatReferenceAbbrev(ref: VerseRef): string {
+  return `${bookAbbrevById(ref.bookId)} ${ref.chapter}:${ref.verse}`;
 }
 
 /** e.g. `Luke 1:4–5` when start &lt; end; single verse matches {@link formatReference}. */

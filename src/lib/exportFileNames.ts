@@ -1,7 +1,7 @@
 import type { ExportVariant } from "../export/exportVariant";
 import type { VersePage } from "../bible/types";
 import type { VerseBlockOrder } from "./verseBlockOrder";
-import { formatReference } from "./referenceParser";
+import { formatReference, formatReferenceAbbrev } from "./referenceParser";
 function sanitizeFileName(s: string): string {
   return s.replace(/[^\w\u0900-\u0fff-]+/g, "_").replace(/_+/g, "_").slice(0, 120);
 }
@@ -40,11 +40,15 @@ export function exportPngFileName(
   fallbackHindiLabel: string,
   verseBlockOrder: VerseBlockOrder,
   includeVariant = true,
+  useBookAbbrev = false,
 ): string {
   const englishLabel = page.versionLabelEn ?? fallbackEnglishLabel;
   const hindiLabel = page.versionLabelHi ?? fallbackHindiLabel;
   const versions = versionFileSuffix(englishLabel, hindiLabel, verseBlockOrder);
-  const stem = `${sanitizeFileName(formatReference(page.ref))}-${versions}`;
+  const refLabel = useBookAbbrev
+    ? formatReferenceAbbrev(page.ref)
+    : formatReference(page.ref);
+  const stem = `${sanitizeFileName(refLabel)}-${versions}`;
   return includeVariant ? `${stem}-${variant}.png` : `${stem}.png`;
 }
 
@@ -56,6 +60,7 @@ export function uniqueExportPngFileNames(
   fallbackHindiLabel: string,
   verseBlockOrder: VerseBlockOrder,
   includeVariant = true,
+  useBookAbbrev = false,
 ): string[] {
   const seen = new Map<string, number>();
   return pages.map((page) => {
@@ -66,6 +71,7 @@ export function uniqueExportPngFileNames(
       fallbackHindiLabel,
       verseBlockOrder,
       includeVariant,
+      useBookAbbrev,
     );
     const count = seen.get(base) ?? 0;
     seen.set(base, count + 1);
