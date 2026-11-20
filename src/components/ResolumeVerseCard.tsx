@@ -127,6 +127,8 @@ export function ResolumeVerseCard({
           key={backgroundDataUrl}
           src={backgroundDataUrl!}
           draggable={false}
+          decoding="sync"
+          loading="eager"
           onError={() => setBgLoadFailed(true)}
           style={{
             position: "absolute",

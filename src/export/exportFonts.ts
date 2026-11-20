@@ -1,4 +1,6 @@
 import type { TypographySpec } from "../bible/types";
+import { isWebKit } from "./browser";
+import { woffToSfnt } from "./woffToSfnt";
 
 import poppinsDevanagari500 from "@fontsource/poppins/files/poppins-devanagari-500-normal.woff2?url";
 import poppinsDevanagari600 from "@fontsource/poppins/files/poppins-devanagari-600-normal.woff2?url";
@@ -30,6 +32,8 @@ const UNICODE = {
 } as const;
 
 type CardFontFace = {
+  /** Stable id used to load the WOFF file on WebKit. */
+  key: string;
   family: string;
   weight: number;
   url: string;
@@ -38,72 +42,84 @@ type CardFontFace = {
 
 const CARD_FONT_FACES: CardFontFace[] = [
   {
+    key: "poppins-latin-500",
     family: "Poppins",
     weight: 500,
     url: poppinsLatin500,
     unicodeRange: UNICODE.latin,
   },
   {
+    key: "poppins-latin-600",
     family: "Poppins",
     weight: 600,
     url: poppinsLatin600,
     unicodeRange: UNICODE.latin,
   },
   {
+    key: "poppins-latin-700",
     family: "Poppins",
     weight: 700,
     url: poppinsLatin700,
     unicodeRange: UNICODE.latin,
   },
   {
+    key: "poppins-latin-ext-500",
     family: "Poppins",
     weight: 500,
     url: poppinsLatinExt500,
     unicodeRange: UNICODE.latinExt,
   },
   {
+    key: "poppins-latin-ext-600",
     family: "Poppins",
     weight: 600,
     url: poppinsLatinExt600,
     unicodeRange: UNICODE.latinExt,
   },
   {
+    key: "poppins-latin-ext-700",
     family: "Poppins",
     weight: 700,
     url: poppinsLatinExt700,
     unicodeRange: UNICODE.latinExt,
   },
   {
+    key: "poppins-devanagari-500",
     family: "Poppins",
     weight: 500,
     url: poppinsDevanagari500,
     unicodeRange: UNICODE.devanagari,
   },
   {
+    key: "poppins-devanagari-600",
     family: "Poppins",
     weight: 600,
     url: poppinsDevanagari600,
     unicodeRange: UNICODE.devanagari,
   },
   {
+    key: "poppins-devanagari-700",
     family: "Poppins",
     weight: 700,
     url: poppinsDevanagari700,
     unicodeRange: UNICODE.devanagari,
   },
   {
+    key: "noto-devanagari-500",
     family: "Noto Sans Devanagari",
     weight: 500,
     url: notoDevanagari500,
     unicodeRange: UNICODE.devanagari,
   },
   {
+    key: "noto-devanagari-600",
     family: "Noto Sans Devanagari",
     weight: 600,
     url: notoDevanagari600,
     unicodeRange: UNICODE.devanagari,
   },
   {
+    key: "noto-devanagari-700",
     family: "Noto Sans Devanagari",
     weight: 700,
     url: notoDevanagari700,
@@ -113,23 +129,25 @@ const CARD_FONT_FACES: CardFontFace[] = [
 
 let baseFontEmbedCssPromise: Promise<string> | null = null;
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  const chunk = 0x8000;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
+/** FileReader avoids Safari's argument-count limit on `String.fromCharCode(...)`. */
+function bytesToDataUri(bytes: Uint8Array, mime: string): Promise<string> {
+  const blob = new Blob([bytes], { type: mime });
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () =>
+      reject(reader.error ?? new Error("Could not encode font"));
+    reader.readAsDataURL(blob);
+  });
 }
 
-async function fontUrlToDataUri(url: string): Promise<string> {
+async function fontUrlToDataUri(url: string, mime: string): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch font ${url}: ${res.status}`);
   }
-  const buffer = await res.arrayBuffer();
-  return `data:font/woff2;base64,${arrayBufferToBase64(buffer)}`;
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  return bytesToDataUri(bytes, mime);
 }
 
 function fontFaceCss(
@@ -137,16 +155,94 @@ function fontFaceCss(
   weight: number,
   dataUri: string,
   unicodeRange: string,
+  format: "woff2" | "truetype" | "opentype",
 ): string {
   return [
     "@font-face {",
     `  font-family: '${family}';`,
     "  font-style: normal;",
     `  font-weight: ${weight};`,
-    `  src: url(${dataUri}) format('woff2');`,
+    `  src: url(${dataUri}) format('${format}');`,
     `  unicode-range: ${unicodeRange};`,
     "}",
   ].join("\n");
+}
+
+/**
+ * WebKit does not apply WOFF2 fonts inside an SVG `<foreignObject>` image.
+ * Decode WOFF (zlib) to TrueType/OpenType, which Safari can draw.
+ */
+async function webKitFontFaceCss(face: CardFontFace): Promise<string> {
+  const url = await loadWebKitWoffUrl(face.key);
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch font ${url}: ${res.status}`);
+  }
+  const sfnt = woffToSfnt(new Uint8Array(await res.arrayBuffer()));
+  const mime = sfnt.format === "opentype" ? "font/otf" : "font/ttf";
+  const dataUri = await bytesToDataUri(sfnt.bytes, mime);
+  return fontFaceCss(
+    face.family,
+    face.weight,
+    dataUri,
+    face.unicodeRange,
+    sfnt.format,
+  );
+}
+
+function loadWebKitWoffUrl(key: string): Promise<string> {
+  switch (key) {
+    case "poppins-latin-500":
+      return import("@fontsource/poppins/files/poppins-latin-500-normal.woff?url").then(
+        (m) => m.default,
+      );
+    case "poppins-latin-600":
+      return import("@fontsource/poppins/files/poppins-latin-600-normal.woff?url").then(
+        (m) => m.default,
+      );
+    case "poppins-latin-700":
+      return import("@fontsource/poppins/files/poppins-latin-700-normal.woff?url").then(
+        (m) => m.default,
+      );
+    case "poppins-latin-ext-500":
+      return import("@fontsource/poppins/files/poppins-latin-ext-500-normal.woff?url").then(
+        (m) => m.default,
+      );
+    case "poppins-latin-ext-600":
+      return import("@fontsource/poppins/files/poppins-latin-ext-600-normal.woff?url").then(
+        (m) => m.default,
+      );
+    case "poppins-latin-ext-700":
+      return import("@fontsource/poppins/files/poppins-latin-ext-700-normal.woff?url").then(
+        (m) => m.default,
+      );
+    case "poppins-devanagari-500":
+      return import("@fontsource/poppins/files/poppins-devanagari-500-normal.woff?url").then(
+        (m) => m.default,
+      );
+    case "poppins-devanagari-600":
+      return import("@fontsource/poppins/files/poppins-devanagari-600-normal.woff?url").then(
+        (m) => m.default,
+      );
+    case "poppins-devanagari-700":
+      return import("@fontsource/poppins/files/poppins-devanagari-700-normal.woff?url").then(
+        (m) => m.default,
+      );
+    case "noto-devanagari-500":
+      return import("@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-devanagari-500-normal.woff?url").then(
+        (m) => m.default,
+      );
+    case "noto-devanagari-600":
+      return import("@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-devanagari-600-normal.woff?url").then(
+        (m) => m.default,
+      );
+    case "noto-devanagari-700":
+      return import("@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-devanagari-700-normal.woff?url").then(
+        (m) => m.default,
+      );
+    default:
+      return Promise.reject(new Error(`Unknown card font ${key}`));
+  }
 }
 
 /**
@@ -158,12 +254,14 @@ export function getBaseCardFontEmbedCss(): Promise<string> {
     baseFontEmbedCssPromise = (async () => {
       const rules = await Promise.all(
         CARD_FONT_FACES.map(async (face) => {
-          const dataUri = await fontUrlToDataUri(face.url);
+          if (isWebKit()) return webKitFontFaceCss(face);
+          const dataUri = await fontUrlToDataUri(face.url, "font/woff2");
           return fontFaceCss(
             face.family,
             face.weight,
             dataUri,
             face.unicodeRange,
+            "woff2",
           );
         }),
       );

@@ -7,6 +7,7 @@ import {
 } from "../export/exportProgress";
 import { exportProgressStore } from "../export/exportProgressStore";
 import type { ExportVariant } from "../export/exportVariant";
+import type { ManualDownload } from "../hooks/useCardExport";
 import { formatReference } from "../lib/referenceParser";
 
 type Props = {
@@ -14,6 +15,7 @@ type Props = {
   pages: VersePage[];
   selectedId: string | null;
   exportBusy: boolean;
+  manualDownloads: ManualDownload[];
   onClose: () => void;
   onDownloadPng: (variant: ExportVariant, pageIds: string[]) => void | Promise<void>;
   onDownloadZip: (variant: ExportVariant, pageIds: string[]) => void | Promise<void>;
@@ -24,6 +26,7 @@ export function ExportModal({
   pages,
   selectedId,
   exportBusy,
+  manualDownloads,
   onClose,
   onDownloadPng,
   onDownloadZip,
@@ -230,7 +233,9 @@ export function ExportModal({
           >
             <div className="export-modal__progress-head">
               <span className="export-modal__progress-label">
-                {exportProgressLabel(exportProgress)}
+                {exportProgress.phase === "complete" && manualDownloads.length > 0
+                  ? "Export complete — save the file below"
+                  : exportProgressLabel(exportProgress)}
               </span>
               {exportProgress.phase === "rendering" && (
                 <span className="export-modal__progress-count">
@@ -271,6 +276,27 @@ export function ExportModal({
               {exportProgress.phase === "complete" && (
                 <span className="export-modal__progress-done">Done</span>
               )}
+            </div>
+          </div>
+        )}
+
+        {manualDownloads.length > 0 && (
+          <div className="export-modal__manual">
+            <p className="export-modal__section-label">Save</p>
+            <p className="hint export-modal__hint">
+              Mac Safari saves the file from this button.
+            </p>
+            <div className="export-modal__btn-row">
+              {manualDownloads.map((file) => (
+                <a
+                  key={file.url}
+                  className="btn btn--primary"
+                  href={file.url}
+                  download={file.filename}
+                >
+                  {file.filename}
+                </a>
+              ))}
             </div>
           </div>
         )}

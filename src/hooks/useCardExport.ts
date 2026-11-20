@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VersePage } from "../bible/types";
 import { capturePngBlob, prepareExportBatch } from "../export/batchExport";
-import { savePng, zipBlobs } from "../export/downloadZip";
+import { isWebKit } from "../export/browser";
+import { triggerDownload, zipBlobs, type DownloadFile } from "../export/downloadZip";
 import { ExportRasterHost } from "../export/ExportRasterHost";
 import {
   createExportProgressTracker,
@@ -13,6 +14,8 @@ import { datedZipFileName, uniqueExportPngFileNames } from "../lib/exportFileNam
 import { formatReference } from "../lib/referenceParser";
 import type { VerseBlockOrder } from "../lib/verseBlockOrder";
 import type { LayoutSpec, TypographySpec } from "../bible/types";
+
+export type ManualDownload = { filename: string; url: string };
 
 type ExportHostProps = {
   cardLayout: LayoutSpec;
@@ -28,7 +31,26 @@ type ExportHostProps = {
 export function useCardExport(hostProps: ExportHostProps) {
   const [exportBusy, setExportBusy] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [manualDownloads, setManualDownloads] = useState<ManualDownload[]>([]);
   const exportHostRef = useRef<ExportRasterHost | null>(null);
+
+  const clearManualDownloads = useCallback(() => {
+    setManualDownloads((prev) => {
+      if (prev.length === 0) return prev;
+      const urls = prev.map((item) => item.url);
+      window.setTimeout(() => {
+        for (const url of urls) URL.revokeObjectURL(url);
+      }, 60_000);
+      return [];
+    });
+  }, []);
+
+  useEffect(() => {
+    if (exportModalOpen) return;
+    clearManualDownloads();
+  }, [exportModalOpen, clearManualDownloads]);
+
+  useEffect(() => clearManualDownloads, [clearManualDownloads]);
 
   useEffect(() => {
     const host = new ExportRasterHost();
@@ -70,6 +92,7 @@ export function useCardExport(hostProps: ExportHostProps) {
       setExportBusy(true);
       exportProgressStore.setImmediate(tracker.preparing());
       let completed = 0;
+      host.setCapturing(true);
       try {
         const layoutSize = await prepareExportBatch(host, variant, list[0]!);
         for (let i = 0; i < list.length; i++) {
@@ -88,15 +111,33 @@ export function useCardExport(hostProps: ExportHostProps) {
         setExportBusy(false);
         clearExportProgressSoon();
         throw e;
+      } finally {
+        host.setCapturing(false);
       }
     },
     [clearExportProgressSoon],
   );
 
+  const deliverFiles = useCallback((files: DownloadFile[]) => {
+    if (isWebKit()) {
+      setManualDownloads((prev) => {
+        for (const item of prev) URL.revokeObjectURL(item.url);
+        return files.map((file) => ({
+          filename: file.name,
+          url: URL.createObjectURL(file.blob),
+        }));
+      });
+      return;
+    }
+    for (const file of files) triggerDownload(file.blob, file.name);
+  }, []);
+
   const downloadPng = useCallback(
     async (variant: ExportVariant, pages: VersePage[], pageIds: string[]) => {
       const list = pages.filter((p) => pageIds.includes(p.id));
       if (list.length === 0) return;
+      clearManualDownloads();
+      const files: DownloadFile[] = [];
       try {
         const names = uniqueExportPngFileNames(
           list,
@@ -105,9 +146,10 @@ export function useCardExport(hostProps: ExportHostProps) {
           hostProps.hindiLabel,
           hostProps.verseBlockOrder,
         );
-        const tracker = await runExportBatch(variant, list, "png", (p, blob, i) => {
-          savePng(blob, names[i]!);
+        const tracker = await runExportBatch(variant, list, "png", (_p, blob, i) => {
+          files.push({ name: names[i]!, blob });
         });
+        deliverFiles(files);
         exportProgressStore.setImmediate(tracker.complete());
       } finally {
         setExportBusy(false);
@@ -116,6 +158,8 @@ export function useCardExport(hostProps: ExportHostProps) {
     },
     [
       clearExportProgressSoon,
+      clearManualDownloads,
+      deliverFiles,
       runExportBatch,
       hostProps.englishLabel,
       hostProps.hindiLabel,
@@ -127,7 +171,8 @@ export function useCardExport(hostProps: ExportHostProps) {
     async (variant: ExportVariant, pages: VersePage[], pageIds: string[]) => {
       const list = pages.filter((p) => pageIds.includes(p.id));
       if (list.length === 0) return;
-      const entries: { name: string; blob: Blob }[] = [];
+      clearManualDownloads();
+      const entries: DownloadFile[] = [];
       try {
         const names = uniqueExportPngFileNames(
           list,
@@ -145,20 +190,30 @@ export function useCardExport(hostProps: ExportHostProps) {
           });
         });
         exportProgressStore.setImmediate(tracker.zipping());
-        await zipBlobs(entries, datedZipFileName(variant));
+        const zip = await zipBlobs(entries);
+        deliverFiles([{ name: datedZipFileName(variant), blob: zip }]);
         exportProgressStore.setImmediate(tracker.complete());
       } finally {
         setExportBusy(false);
         clearExportProgressSoon();
       }
     },
-    [clearExportProgressSoon, runExportBatch, hostProps.englishLabel, hostProps.hindiLabel, hostProps.verseBlockOrder],
+    [
+      clearExportProgressSoon,
+      clearManualDownloads,
+      deliverFiles,
+      runExportBatch,
+      hostProps.englishLabel,
+      hostProps.hindiLabel,
+      hostProps.verseBlockOrder,
+    ],
   );
 
   return {
     exportBusy,
     exportModalOpen,
     setExportModalOpen,
+    manualDownloads,
     downloadPng,
     downloadZip,
   };
