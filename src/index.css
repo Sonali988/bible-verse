@@ -1272,11 +1272,28 @@ textarea {
 
 .export-hidden-host {
   position: fixed;
-  left: -12000px;
+  left: 0;
   top: 0;
-  overflow: visible;
+  /* Just outside the viewport. A large negative left offset never gets a
+     backing store on macOS, so the export PNG is blank. */
+  transform: translate3d(-100%, 0, 0);
   pointer-events: none;
   z-index: -1;
+}
+
+.export-hidden-host--capture {
+  transform: none;
+  opacity: 0.02;
+  z-index: 1;
+}
+
+.export-card-snapshot {
+  color-scheme: light;
+}
+
+/* `overflow: clip` paints as an empty box inside Safari's SVG foreignObject. */
+.export-card-snapshot .verse-body-box {
+  overflow: hidden;
 }
 
 /* ?? Card edit toolbar (form controls inside .panel) ?? */
@@ -1941,6 +1958,25 @@ h2 {
 
 .export-modal__section-label:not(:first-child) {
   margin-top: 0.75rem;
+}
+
+.export-modal__manual {
+  margin-top: 0.9rem;
+}
+
+.export-modal__manual .export-modal__section-label {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.export-modal a.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .export-modal__btn-row {

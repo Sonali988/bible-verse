@@ -328,6 +328,7 @@ export default function App({
         pages={queue.pages}
         selectedId={queue.selectedId}
         exportBusy={cardExport.exportBusy}
+        manualDownloads={cardExport.manualDownloads}
         onClose={() => cardExport.setExportModalOpen(false)}
         onDownloadPng={(variant, ids) => void cardExport.downloadPng(variant, queue.pages, ids)}
         onDownloadZip={(variant, ids) => void cardExport.downloadZip(variant, queue.pages, ids)}

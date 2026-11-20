@@ -48,6 +48,16 @@ export class ExportRasterHost {
     }
   }
 
+  /** Keep the card in the viewport while capturing. macOS skips layers parked far off-screen. */
+  setCapturing(capturing: boolean): void {
+    for (const variant of ["live", "resolume"] as const) {
+      const wrap = this.hosts[variant]?.wrap;
+      if (!wrap) continue;
+      wrap.classList.toggle("export-hidden-host--capture", capturing);
+      if (capturing) void wrap.offsetWidth;
+    }
+  }
+
   setProps(props: ExportRasterProps): void {
     this.props = props;
     for (const variant of ["live", "resolume"] as const) {

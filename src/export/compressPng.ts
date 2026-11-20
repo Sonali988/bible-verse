@@ -113,25 +113,33 @@ export function recompressPngBytes(bytes: Uint8Array): Uint8Array {
 
 /** Flatten to opaque RGB then recompress PNG. Same pixels, typically much smaller files. */
 export async function compactPngBlob(blob: Blob): Promise<Blob> {
-  const bitmap = await createImageBitmap(blob);
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const ctx = canvas.getContext("2d", { alpha: false });
-  if (!ctx) {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) {
+      bitmap.close();
+      return blob;
+    }
+    ctx.drawImage(bitmap, 0, 0);
     bitmap.close();
+
+    const flattened = await new Promise<Blob | null>((resolve) => {
+      const timer = window.setTimeout(() => resolve(null), 8000);
+      canvas.toBlob((result) => {
+        window.clearTimeout(timer);
+        resolve(result);
+      }, "image/png");
+    });
+    if (!flattened) return blob;
+
+    const bytes = new Uint8Array(await flattened.arrayBuffer());
+    const compact = recompressPngBytes(bytes);
+    const out = new Blob([compact], { type: "image/png" });
+    return out.size < blob.size ? out : blob;
+  } catch {
     return blob;
   }
-  ctx.drawImage(bitmap, 0, 0);
-  bitmap.close();
-
-  const flattened = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, "image/png");
-  });
-  if (!flattened) return blob;
-
-  const bytes = new Uint8Array(await flattened.arrayBuffer());
-  const compact = recompressPngBytes(bytes);
-  const out = new Blob([compact], { type: "image/png" });
-  return out.size < blob.size ? out : blob;
 }
