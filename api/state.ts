@@ -6,6 +6,7 @@ const STATE_KEY = "bvc:shared-state";
 export type SharedAppState = {
   updatedAt: number;
   pages: unknown;
+  savedSections?: unknown;
   cardLayout: unknown;
   resolumeLayout: unknown;
   typography: unknown;

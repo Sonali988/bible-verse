@@ -108,6 +108,12 @@ Works like OpenLP / ProPresenter: the laptop stays on **Live present** (`/live`)
 
 Select a page in the queue, then in each language box **select text** in the read-only textarea and **release the mouse** to add a highlight range. Remove ranges from the list as needed.
 
+## Saved sections (upcoming services)
+
+Use **Save** on a queue card (or **Save all…**) to move verses into a **saved section** without deleting them. Saved cards stay out of the **page queue**, preview, live output, and export until you bring them back.
+
+Open the **Data panel** (left sidebar) for **Saved sections** — create named groups (e.g. by service date). **Add to queue** copies a card into the current queue (the saved copy stays). **Move to queue** copies into the queue and removes it from that section. Saved sections sync with the rest of workspace state on Vercel (Redis) when shared storage is enabled.
+
 ## Export
 
 - **Download selected PNG** — rasterises the card at the **exact** pixel size of the current canvas (**width** × **height** from the toolbar, **1920×1080** after reset), with `pixelRatio` fixed to 1 so high-DPI screens do not double the file size.  

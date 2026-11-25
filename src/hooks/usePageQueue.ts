@@ -4,6 +4,12 @@ import type { LayoutSpec, TypographySpec, VerseDraftItem, VersePage } from "../b
 import { computeAutoFitBodyFontOverrides } from "../lib/fitVerseBodyFont";
 import { newId } from "../lib/id";
 import {
+  copyVersePageToQueue,
+  createSavedSection,
+  normalizeSavedSections,
+  type SavedSection,
+} from "../lib/savedSections";
+import {
   scrollPreviewToPage,
   type PreviewScrollTarget,
 } from "../lib/previewScroll";
@@ -19,11 +25,15 @@ type DesignContext = {
 
 export function usePageQueue(
   initialPages: VersePage[] | undefined,
+  initialSavedSections: SavedSection[] | undefined,
   providerEn: BibleProvider,
   providerHi: BibleProvider,
   design: DesignContext,
 ) {
   const [pages, setPages] = useState<VersePage[]>(initialPages ?? []);
+  const [savedSections, setSavedSections] = useState<SavedSection[]>(
+    initialSavedSections ?? [],
+  );
   const [selectedId, setSelectedId] = useState<string | null>(
     initialPages?.[0]?.id ?? null,
   );
@@ -176,9 +186,120 @@ export function usePageQueue(
     setSelectedId(null);
   }, []);
 
+  const createSection = useCallback((name: string) => {
+    const section = createSavedSection(name);
+    setSavedSections((prev) => [...prev, section]);
+    return section.id;
+  }, []);
+
+  const renameSection = useCallback((sectionId: string, name: string) => {
+    const trimmed = name.trim().slice(0, 120);
+    if (!trimmed) return;
+    setSavedSections((prev) =>
+      prev.map((s) => (s.id === sectionId ? { ...s, name: trimmed } : s)),
+    );
+  }, []);
+
+  const deleteSection = useCallback((sectionId: string) => {
+    setSavedSections((prev) => prev.filter((s) => s.id !== sectionId));
+  }, []);
+
+  const movePageToSection = useCallback(
+    (pageId: string, sectionId: string) => {
+      setPages((list) => {
+        const page = list.find((p) => p.id === pageId);
+        if (!page) return list;
+        setSavedSections((sections) =>
+          sections.map((s) =>
+            s.id === sectionId
+              ? { ...s, pages: [...s.pages, page] }
+              : s,
+          ),
+        );
+        if (selectedId === pageId) {
+          const rest = list.filter((p) => p.id !== pageId);
+          setSelectedId(rest[0]?.id ?? null);
+        }
+        return list.filter((p) => p.id !== pageId);
+      });
+    },
+    [selectedId],
+  );
+
+  const moveAllPagesToSection = useCallback((sectionId: string) => {
+    setPages((list) => {
+      if (list.length === 0) return list;
+      setSavedSections((sections) =>
+        sections.map((s) =>
+          s.id === sectionId ? { ...s, pages: [...s.pages, ...list] } : s,
+        ),
+      );
+      setSelectedId(null);
+      return [];
+    });
+  }, []);
+
+  const removePageFromSection = useCallback(
+    (sectionId: string, pageId: string) => {
+      setSavedSections((sections) =>
+        sections.map((s) =>
+          s.id === sectionId
+            ? { ...s, pages: s.pages.filter((p) => p.id !== pageId) }
+            : s,
+        ),
+      );
+    },
+    [],
+  );
+
+  const copyPageFromSectionToQueue = useCallback(
+    async (sectionId: string, pageId: string) => {
+      const section = savedSections.find((s) => s.id === sectionId);
+      const source = section?.pages.find((p) => p.id === pageId);
+      if (!source) return;
+      await document.fonts.ready;
+      const copy = copyVersePageToQueue(source, design);
+      setPages((p) => [...p, copy]);
+      selectPage(copy.id, "both");
+    },
+    [savedSections, design, selectPage],
+  );
+
+  const movePageFromSectionToQueue = useCallback(
+    async (sectionId: string, pageId: string) => {
+      const section = savedSections.find((s) => s.id === sectionId);
+      const source = section?.pages.find((p) => p.id === pageId);
+      if (!source) return;
+      await document.fonts.ready;
+      const copy = copyVersePageToQueue(source, design);
+      setPages((p) => [...p, copy]);
+      removePageFromSection(sectionId, pageId);
+      selectPage(copy.id, "both");
+    },
+    [savedSections, design, removePageFromSection, selectPage],
+  );
+
+  const copyAllFromSectionToQueue = useCallback(
+    async (sectionId: string) => {
+      const section = savedSections.find((s) => s.id === sectionId);
+      if (!section?.pages.length) return;
+      await document.fonts.ready;
+      const copies = section.pages.map((p) => copyVersePageToQueue(p, design));
+      setPages((prev) => [...prev, ...copies]);
+      selectPage(copies[0]!.id, "both");
+    },
+    [savedSections, design, selectPage],
+  );
+
+  const replaceSavedSections = useCallback((next: SavedSection[]) => {
+    setSavedSections(normalizeSavedSections(next, providerEn.versionLabel, providerHi.versionLabel));
+  }, [providerEn.versionLabel, providerHi.versionLabel]);
+
   return {
     pages,
     setPages,
+    savedSections,
+    setSavedSections: replaceSavedSections,
     selectedId,
     selected,
     draft,
@@ -191,5 +312,14 @@ export function usePageQueue(
     updateSelectedTitles,
     removePage,
     removeAllPages,
+    createSection,
+    renameSection,
+    deleteSection,
+    movePageToSection,
+    moveAllPagesToSection,
+    removePageFromSection,
+    copyPageFromSectionToQueue,
+    movePageFromSectionToQueue,
+    copyAllFromSectionToQueue,
   };
 }
