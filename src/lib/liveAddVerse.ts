@@ -47,6 +47,7 @@ function toPersistedState(
     ),
     backgrounds: partial.backgrounds ?? defaultBackgroundSlots(),
     liveOutputPageId,
+    savedSections: partial.savedSections ?? [],
   };
 }
 

@@ -7,7 +7,9 @@ import {
   normalizeHindiSourceId,
   type HindiSourceId,
 } from "../config/hindiSources";
+import type { SavedSection } from "../lib/savedSections";
 import { BACKGROUND_SLOT_COUNT, type BackgroundSlots } from "../lib/storage";
+import { SavedSectionsPanel } from "./SavedSectionsPanel";
 
 type BundledStatus = "loading" | "loaded" | "partial" | "missing";
 
@@ -36,6 +38,15 @@ type Props = {
   onEnglishVersionChange: (id: EnglishSqliteVersionId) => void;
   onHindiSourceChange: (id: HindiSourceId) => void;
   onOpenSqliteUpload: (lang: "en" | "hi") => void;
+  savedSections: SavedSection[];
+  exportBusy: boolean;
+  onCreateSavedSection: (name: string) => void;
+  onRenameSavedSection: (sectionId: string, name: string) => void;
+  onDeleteSavedSection: (sectionId: string) => void;
+  onCopySavedToQueue: (sectionId: string, pageId: string) => void | Promise<void>;
+  onMoveSavedToQueue: (sectionId: string, pageId: string) => void | Promise<void>;
+  onCopyAllSavedToQueue: (sectionId: string) => void | Promise<void>;
+  onRemoveFromSavedSection: (sectionId: string, pageId: string) => void;
 };
 
 export function DataPanelSidebar({
@@ -63,6 +74,15 @@ export function DataPanelSidebar({
   onEnglishVersionChange,
   onHindiSourceChange,
   onOpenSqliteUpload,
+  savedSections,
+  exportBusy,
+  onCreateSavedSection,
+  onRenameSavedSection,
+  onDeleteSavedSection,
+  onCopySavedToQueue,
+  onMoveSavedToQueue,
+  onCopyAllSavedToQueue,
+  onRemoveFromSavedSection,
 }: Props) {
   return (
     <>
@@ -93,6 +113,20 @@ export function DataPanelSidebar({
           </button>
         </div>
         <div className="app-sidebar__scroll">
+          <SavedSectionsPanel
+            compact
+            className="saved-sections-panel panel--sidebar"
+            sections={savedSections}
+            exportBusy={exportBusy}
+            onCreateSection={onCreateSavedSection}
+            onRenameSection={onRenameSavedSection}
+            onDeleteSection={onDeleteSavedSection}
+            onCopyToQueue={onCopySavedToQueue}
+            onMoveToQueue={onMoveSavedToQueue}
+            onCopyAllToQueue={onCopyAllSavedToQueue}
+            onRemoveFromSection={onRemoveFromSavedSection}
+          />
+
           <section className="panel panel--sidebar">
             <h2>Background</h2>
             <p className="hint">

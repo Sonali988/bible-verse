@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import type { HighlightRange, VersePage } from "../bible/types";
+import type { SavedSection } from "../lib/savedSections";
 import { formatReference } from "../lib/referenceParser";
 import { ConfirmModal } from "./ConfirmModal";
 import { HighlightEditor } from "./HighlightEditor";
+import { SaveToSectionModal } from "./SaveToSectionModal";
 import { VerseTitleModal } from "./VerseTitleModal";
 
 type Props = {
@@ -19,6 +21,10 @@ type Props = {
   onUpdateTitles: (patch: { titleHiOverride?: string; titleEnOverride?: string }) => void;
   labelEn: string;
   labelHi: string;
+  savedSections: SavedSection[];
+  onCreateSection: (name: string) => string;
+  onMovePageToSection: (pageId: string, sectionId: string) => void;
+  onMoveAllPagesToSection: (sectionId: string) => void;
 };
 
 function highlightCount(p: VersePage): number {
@@ -39,9 +45,16 @@ export function PageQueuePanel({
   onUpdateTitles,
   labelEn,
   labelHi,
+  savedSections,
+  onCreateSection,
+  onMovePageToSection,
+  onMoveAllPagesToSection,
 }: Props) {
   const [removeAllConfirmOpen, setRemoveAllConfirmOpen] = useState(false);
   const [titleModalOpen, setTitleModalOpen] = useState(false);
+  const [saveModal, setSaveModal] = useState<
+    { kind: "one"; pageId: string } | { kind: "all" } | null
+  >(null);
 
   useEffect(() => {
     setTitleModalOpen(false);
@@ -60,6 +73,14 @@ export function PageQueuePanel({
           {pages.length > 0 && <span className="badge">{pages.length}</span>}
           {pages.length > 0 && (
             <>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                disabled={exportBusy}
+                onClick={() => setSaveModal({ kind: "all" })}
+              >
+                Save all…
+              </button>
               <button
                 type="button"
                 className="btn btn--ghost btn--sm page-queue-panel__remove-all"
@@ -119,6 +140,16 @@ export function PageQueuePanel({
                     >
                       {hi}
                     </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="page-queue-chip__save btn btn--ghost btn--sm"
+                    aria-label={`Save ${formatReference(p.ref)} for later`}
+                    disabled={exportBusy}
+                    title="Move to saved section"
+                    onClick={() => setSaveModal({ kind: "one", pageId: p.id })}
+                  >
+                    Save
                   </button>
                   <button
                     type="button"
@@ -198,6 +229,24 @@ export function PageQueuePanel({
           onClose={() => setTitleModalOpen(false)}
         />
       )}
+
+      <SaveToSectionModal
+        open={saveModal !== null}
+        title={saveModal?.kind === "all" ? "Save all verses" : "Save verse"}
+        message={
+          saveModal?.kind === "all"
+            ? "Move every card in the page queue into a saved section. They will leave the queue until you add them back."
+            : "Move this card into a saved section. It will leave the page queue until you add it back."
+        }
+        sections={savedSections}
+        onClose={() => setSaveModal(null)}
+        onCreateSection={onCreateSection}
+        onConfirm={(sectionId) => {
+          if (!saveModal) return;
+          if (saveModal.kind === "all") onMoveAllPagesToSection(sectionId);
+          else onMovePageToSection(saveModal.pageId, sectionId);
+        }}
+      />
     </section>
   );
 }

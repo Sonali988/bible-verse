@@ -37,8 +37,10 @@ import {
   loadBackgroundImagesFromIdb,
   saveBackgroundImagesToIdb,
 } from "./backgroundImageStore";
+import { normalizeSavedSections, type SavedSection } from "./savedSections";
 
 const K_PAGES = "bvc:pages";
+const K_SAVED_SECTIONS = "bvc:savedSections";
 const K_CARD_LAYOUT = "bvc:cardLayout";
 const K_RESOLUME_LAYOUT = "bvc:resolumeLayout";
 const K_TYPO = "bvc:typography";
@@ -60,6 +62,8 @@ export {
 
 export type PersistedState = {
   pages: VersePage[];
+  /** Verse cards parked for future services (not in the live queue until copied in). */
+  savedSections: SavedSection[];
   cardLayout: LayoutSpec;
   resolumeLayout: LayoutSpec;
   typography: TypographySpec;
@@ -104,6 +108,7 @@ export function normalizePersisted(raw: {
   englishSqliteVersionId?: unknown;
   backgrounds?: unknown;
   liveOutputPageId?: unknown;
+  savedSections?: unknown;
 }): Partial<PersistedState> {
   const pagesRaw = raw.pages as VersePage[] | null | undefined;
   const englishSqliteVersionId =
@@ -149,8 +154,17 @@ export function normalizePersisted(raw: {
       : undefined;
   const backgrounds = normalizeBackgroundSlots(raw.backgrounds);
   const liveOutputPageId = normalizeLiveOutputPageId(raw.liveOutputPageId);
+  const savedSections =
+    raw.savedSections !== undefined
+      ? normalizeSavedSections(
+          raw.savedSections,
+          legacyEnLabel,
+          legacyHiLabel,
+        )
+      : undefined;
   return {
     pages: pages ?? undefined,
+    savedSections,
     cardLayout,
     resolumeLayout,
     typography: typography ?? undefined,
@@ -278,10 +292,14 @@ export function loadPersisted(): Partial<PersistedState> {
     const verseBlockOrderRaw = localStorage.getItem(K_VERSE_BLOCK_ORDER);
     const hindiSourceRaw = localStorage.getItem(K_HINDI_SOURCE);
     const liveOutputPageIdRaw = localStorage.getItem(K_LIVE_OUTPUT_PAGE_ID);
+    const savedSectionsRaw = JSON.parse(
+      localStorage.getItem(K_SAVED_SECTIONS) ?? "null",
+    );
     const meta = loadBackgroundSlotsMeta();
 
     return normalizePersisted({
       pages: pagesRaw,
+      savedSections: savedSectionsRaw,
       englishSqliteVersionId: englishSqliteVersionRaw,
       cardLayout: cardLayoutRaw,
       resolumeLayout: resolumeLayoutRaw,
@@ -302,6 +320,10 @@ export function loadPersisted(): Partial<PersistedState> {
 
 export function savePersistedLocal(state: PersistedState): void {
   localStorage.setItem(K_PAGES, JSON.stringify(state.pages));
+  localStorage.setItem(
+    K_SAVED_SECTIONS,
+    JSON.stringify(state.savedSections ?? []),
+  );
   localStorage.setItem(K_CARD_LAYOUT, JSON.stringify(state.cardLayout));
   localStorage.setItem(K_RESOLUME_LAYOUT, JSON.stringify(state.resolumeLayout));
   localStorage.setItem(K_TYPO, JSON.stringify(state.typography));

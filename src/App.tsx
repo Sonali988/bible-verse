@@ -61,6 +61,7 @@ export default function App({
 
   const queue = usePageQueue(
     persisted.pages,
+    persisted.savedSections,
     bible.providerEn,
     bible.providerHi,
     {
@@ -72,11 +73,21 @@ export default function App({
     },
   );
 
+  useEffect(() => {
+    if (
+      liveOutputPageId &&
+      !queue.pages.some((p) => p.id === liveOutputPageId)
+    ) {
+      setLiveOutputPageId(null);
+    }
+  }, [queue.pages, liveOutputPageId]);
+
   const cardBackgroundUrl = selectedBackgroundUrl(backgrounds);
 
   const persistedSnapshot = useMemo(
     (): PersistedState => ({
       pages: queue.pages,
+      savedSections: queue.savedSections,
       cardLayout: design.cardLayout,
       typography: design.typography,
       resolumeLayout: design.resolumeLayout,
@@ -87,7 +98,7 @@ export default function App({
       backgrounds,
       liveOutputPageId,
     }),
-    [queue.pages, design.cardLayout, design.typography, design.resolumeLayout, design.resolumeTypography, design.verseBlockOrder, bible.hindiSourceId, bible.englishVersionId, backgrounds, liveOutputPageId],
+    [queue.pages, queue.savedSections, design.cardLayout, design.typography, design.resolumeLayout, design.resolumeTypography, design.verseBlockOrder, bible.hindiSourceId, bible.englishVersionId, backgrounds, liveOutputPageId],
   );
 
   const { sharedSaveState, bgSaveWarning, setBgSaveWarning } = useAppPersistence(
@@ -202,6 +213,17 @@ export default function App({
           onEnglishVersionChange={bible.setEnglishVersionId}
           onHindiSourceChange={bible.setHindiSourceId}
           onOpenSqliteUpload={bible.setSqliteUploadLang}
+          savedSections={queue.savedSections}
+          exportBusy={cardExport.exportBusy}
+          onCreateSavedSection={(name) => {
+            queue.createSection(name);
+          }}
+          onRenameSavedSection={queue.renameSection}
+          onDeleteSavedSection={queue.deleteSection}
+          onCopySavedToQueue={queue.copyPageFromSectionToQueue}
+          onMoveSavedToQueue={queue.movePageFromSectionToQueue}
+          onCopyAllSavedToQueue={queue.copyAllFromSectionToQueue}
+          onRemoveFromSavedSection={queue.removePageFromSection}
         />
 
         <div className={editRailOpen ? "app-content app-content--edit-open" : "app-content"}>
@@ -238,6 +260,10 @@ export default function App({
                 onUpdateTitles={queue.updateSelectedTitles}
                 labelEn={bible.englishLabel}
                 labelHi={bible.hindiLabel}
+                savedSections={queue.savedSections}
+                onCreateSection={queue.createSection}
+                onMovePageToSection={queue.movePageToSection}
+                onMoveAllPagesToSection={queue.moveAllPagesToSection}
               />
             </div>
 

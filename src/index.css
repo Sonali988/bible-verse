@@ -1789,6 +1789,16 @@ h2 {
   background: rgba(255, 255, 255, 0.28);
 }
 
+.page-queue-chip__save {
+  flex-shrink: 0;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  border-radius: 0;
+  border-left: none;
+}
+
 .page-queue-chip__remove {
   display: inline-flex;
   align-items: center;
@@ -1822,6 +1832,288 @@ h2 {
   color: var(--danger);
   border-color: rgba(231, 76, 60, 0.35);
   background: rgba(231, 76, 60, 0.1);
+}
+
+.app-sidebar .saved-sections-panel {
+  margin-bottom: 0.75rem;
+}
+
+.app-sidebar .saved-sections-panel.collapsible-panel {
+  box-shadow: none;
+}
+
+.saved-sections-panel--compact .collapsible-panel__body {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.saved-sections-panel--compact .collapsible-panel__header {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.saved-sections-panel--compact .collapsible-panel__title {
+  font-size: 0.95rem;
+}
+
+.saved-sections-panel--compact .collapsible-panel__subtitle {
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.saved-sections-panel__toolbar {
+  margin-bottom: 0.5rem;
+}
+
+.saved-sections-panel__empty {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.saved-sections-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.saved-section-block__inner {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+
+.saved-section-block__inner--open {
+  border-color: rgba(29, 90, 126, 0.35);
+  background: linear-gradient(
+    180deg,
+    rgba(29, 90, 126, 0.08) 0%,
+    var(--bg-elevated) 100%
+  );
+}
+
+.saved-section-block__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.5rem;
+  padding: 0.35rem 0.45rem;
+}
+
+.saved-section-block__head--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+  padding: 0.5rem 0.55rem;
+}
+
+.saved-section-block__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.saved-section-block__toggle:hover {
+  background: var(--panel-hover);
+  border-color: rgba(29, 90, 126, 0.28);
+}
+
+.saved-section-block__chevron {
+  flex-shrink: 0;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid var(--accent-light);
+  border-bottom: 2px solid var(--accent-light);
+  transform: rotate(-45deg);
+  transition: transform 0.2s ease;
+}
+
+.saved-section-block__inner--open .saved-section-block__chevron {
+  transform: rotate(45deg);
+  margin-top: -0.1rem;
+}
+
+.saved-section-block__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.saved-section-block__count {
+  flex-shrink: 0;
+  min-width: 1.35rem;
+  text-align: center;
+}
+
+.saved-section-block__name-input {
+  flex: 1;
+  min-width: 6rem;
+  padding: 0.2rem 0.4rem;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.saved-section-block__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.saved-section-block__head--stacked .saved-section-block__tools {
+  padding-left: 0.15rem;
+}
+
+.saved-section-block__head--stacked .saved-section-block__tools .btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
+  font-size: 0.72rem;
+}
+
+.saved-section-block__body {
+  padding: 0 0.55rem 0.55rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.saved-section-block__pages {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.saved-section-page {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.35rem 0.45rem;
+  background: var(--panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.saved-section-page--compact {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  padding: 0.5rem 0.55rem;
+}
+
+.saved-section-page__ref {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.saved-section-page--compact .saved-section-page__ref {
+  font-size: 0.9rem;
+  padding-bottom: 0.15rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.saved-section-page__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.saved-section-page--compact .saved-section-page__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.3rem;
+  width: 100%;
+}
+
+.saved-section-page--compact .saved-section-page__actions .btn {
+  font-size: 0.72rem;
+  padding: 0.35rem 0.4rem;
+}
+
+.save-section-modal {
+  width: min(100%, 24rem);
+}
+
+.save-section-modal__mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.save-section-modal__radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.save-section-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.save-section-modal__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.save-section-modal__select,
+.save-section-modal__input {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.save-section-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .page-queue-panel__export {

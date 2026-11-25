@@ -85,6 +85,7 @@ function buildPersistedForRemote(
     ),
     backgrounds: partial.backgrounds ?? defaultBackgroundSlots(),
     liveOutputPageId,
+    savedSections: partial.savedSections ?? [],
   };
 }
 
